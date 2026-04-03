@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Werkplaats17 Rotterdam — Admin</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#161412;--surface:#1e1b17;--surface2:#252118;--border:#2e2920;
+  --amber:#E09A2F;--cream:#F0EAE0;--muted:#7a7060;--wall:#4a4438;
+  --c-hal:rgba(224,154,47,.13);--b-hal:rgba(224,154,47,.5);
+  --c-kan:rgba(110,150,220,.13);--b-kan:rgba(110,150,220,.5);
+  --c-trap:rgba(180,140,80,.13);--b-trap:rgba(180,140,80,.45);
+  --c-ep:rgba(180,100,220,.13);--b-ep:rgba(180,100,220,.5);
+  --green:#4CAF50;--red:#e53935;
+}
+body{background:var(--bg);color:var(--cream);font-family:'Courier New',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* auth */
+#auth-gate{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.auth-box{text-align:center;max-width:300px;width:100%;padding:40px}
+.auth-box h1{font-size:22px;letter-spacing:2px;margin-bottom:8px;color:var(--cream)}
+.auth-box h1 span{color:var(--amber)}
+.auth-box p{font-size:10px;color:var(--muted);margin-bottom:20px;letter-spacing:.1em}
+.auth-box input{width:100%;padding:10px 14px;font-family:inherit;font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--cream);outline:none;text-align:center;letter-spacing:.1em}
+.auth-box input:focus{border-color:var(--amber)}
+.auth-err{color:var(--red);font-size:9px;margin-top:8px;opacity:0;transition:opacity .2s}
+.auth-err.show{opacity:1}
+
+/* header */
+.hdr{display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.hdr h1{font-size:11px;letter-spacing:.2em;color:var(--amber);text-transform:uppercase}
+.tabs{display:flex;gap:2px}
+.tab{padding:4px 12px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;font-family:inherit}
+.tab.on{background:var(--amber);color:var(--bg);border-color:var(--amber)}
+.hint{font-size:8px;color:var(--muted);margin-left:auto}
+.hdr-btns{display:flex;gap:6px;margin-left:8px}
+.hbtn{padding:4px 12px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border);background:var(--bg);color:var(--cream);cursor:pointer;font-family:inherit}
+.hbtn:hover{border-color:var(--amber);color:var(--amber)}
+.hbtn-pub{background:var(--amber);color:var(--bg);border-color:var(--amber);font-weight:bold}
+.hbtn-pub:hover{filter:brightness(1.15)}
+
+/* layout */
+.wrap{display:flex;flex:1;overflow:hidden}
+/* left sidebar */
+.sb{width:180px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sb-h{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);padding:8px 10px 5px;border-bottom:1px solid var(--border)}
+.sb-s{overflow-y:auto;flex:1;padding:5px}
+.sb-s::-webkit-scrollbar{width:3px}.sb-s::-webkit-scrollbar-thumb{background:var(--border)}
+.cat{font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);padding:5px 3px 3px}
+.item{display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:2px;border:1px solid var(--border);background:var(--bg);cursor:grab;font-size:9px;color:var(--cream);user-select:none;position:relative}
+.item:hover{border-color:var(--amber)}
+.item .item-del{display:none;position:absolute;right:2px;top:2px;width:12px;height:12px;border:none;background:#a03030;color:#fff;font-size:7px;cursor:pointer;align-items:center;justify-content:center;z-index:2;padding:0;line-height:1}
+.item:hover .item-del{display:flex}
+.sw{width:7px;height:7px;border-radius:1px;flex-shrink:0}
+/* canvas */
+.cv{flex:1;overflow:hidden;background:var(--bg);cursor:grab;touch-action:none;user-select:none;position:relative}
+.cv.grabbing{cursor:grabbing}
+#fp{position:relative;transform-origin:0 0}
+/* placed items */
+.pl{position:absolute;cursor:move;user-select:none;z-index:10}
+.pl.sel{z-index:15}
+.pl.sel .ib{border-color:#fff!important;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
+.ib{width:100%;height:100%;border:1.5px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.il{font-size:7px;letter-spacing:.05em;text-align:center;padding:1px;line-height:1.3;text-transform:uppercase;pointer-events:none}
+.id{position:absolute;bottom:-10px;left:0;right:0;font-size:5.5px;color:rgba(255,255,255,.35);pointer-events:none;text-align:center;white-space:nowrap}
+.db,.rb,.cpb{position:absolute;width:13px;height:13px;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:8px;z-index:20;top:-14px}
+.pl.sel .db,.pl.sel .rb{display:flex}
+.pl:hover .cpb{display:flex}
+.db{left:0;background:#a03030;color:#fff}
+.rb{right:0;background:var(--amber);color:var(--bg)}
+.cpb{left:14px;background:#306090;color:#fff}
+.stb{position:absolute;bottom:-14px;left:0;height:13px;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:7px;z-index:20;padding:0 5px;letter-spacing:.04em;text-transform:uppercase;font-family:inherit}
+.pl.sel .stb{display:flex}
+.stb[data-st="beschikbaar"]{background:#4CAF50;color:#fff}
+.stb[data-st="bezet"]{background:#666;color:#fff}
+.stb[data-st="gereserveerd"]{background:#FF9800;color:#fff}
+.stb[data-st=""]{background:var(--muted);color:var(--bg)}
+
+/* right sidebar — properties panel */
+.props{width:200px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.props-h{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);padding:8px 10px 5px;border-bottom:1px solid var(--border)}
+.props-empty{padding:20px 10px;font-size:9px;color:var(--muted);text-align:center;line-height:1.6}
+.props-scroll{overflow-y:auto;flex:1;padding:8px}
+.props-scroll::-webkit-scrollbar{width:3px}.props-scroll::-webkit-scrollbar-thumb{background:var(--border)}
+.pf{margin-bottom:8px}
+.pf-label{font-size:7px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.pf-input{width:100%;padding:4px 6px;font-size:9px;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--cream);outline:none}
+.pf-input:focus{border-color:var(--amber)}
+.pf-row{display:flex;gap:4px;align-items:center}
+.pf-row .pf-input{flex:1;min-width:0}
+.pf-row span{font-size:8px;color:var(--muted)}
+.pf-select{width:100%;padding:4px 6px;font-size:9px;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--cream);outline:none;-webkit-appearance:none}
+.pf-select:focus{border-color:var(--amber)}
+.pf-color{width:100%;height:24px;padding:1px;background:var(--bg);border:1px solid var(--border);cursor:pointer}
+.pf-color:focus{border-color:var(--amber)}
+.pf-btn{width:100%;padding:5px;font-size:8px;font-family:inherit;letter-spacing:.1em;text-transform:uppercase;border:none;cursor:pointer;margin-top:4px}
+.pf-btn-del{background:#a03030;color:#fff}
+.pf-btn-del:hover{filter:brightness(1.2)}
+.pf-btn-dup{background:#306090;color:#fff}
+.pf-btn-dup:hover{filter:brightness(1.2)}
+.pf-divider{border-top:1px solid var(--border);margin:10px 0}
+
+
+/* room styles (Oud Camp) */
+.pl.room-pl{z-index:5}
+.pl.sel .rm{border-color:rgba(255,255,255,.6)!important;box-shadow:0 0 0 1px rgba(255,255,255,.2)}
+.rm{width:100%;height:100%;border:1px solid;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;overflow:hidden;padding:4px 5px}
+.rl{font-size:7px;letter-spacing:.09em;text-transform:uppercase;font-weight:bold;pointer-events:none}
+.ra{font-size:5.5px;color:rgba(255,255,255,.22);pointer-events:none;position:absolute;bottom:3px;right:5px}
+.eb{position:absolute;width:13px;height:13px;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:8px;z-index:20;top:-14px;left:28px;background:#508050;color:#fff}
+.pl.sel .eb{display:flex}
+.rh{position:absolute;width:8px;height:8px;background:var(--amber);border:1px solid var(--bg);z-index:25;display:none}
+.pl.sel .rh{display:block}
+.rh-se{bottom:-4px;right:-4px;cursor:se-resize}
+.rh-e{top:50%;right:-4px;transform:translateY(-50%);cursor:e-resize;height:14px;width:5px}
+.rh-s{bottom:-4px;left:50%;transform:translateX(-50%);cursor:s-resize;width:14px;height:5px}
+.epop{position:absolute;top:-70px;left:0;background:var(--surface);border:1px solid var(--border);padding:5px;z-index:30;display:none;flex-direction:column;gap:3px;min-width:110px}
+.epop.on{display:flex}
+.epop input{padding:2px 4px;font-size:8px;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--cream);width:100%}
+.epop input:focus{border-color:var(--amber);outline:none}
+.epop .erow{display:flex;gap:3px;align-items:center}
+.epop .erow span{font-size:7px;color:var(--muted)}
+.epop button{padding:2px 6px;font-size:7px;font-family:inherit;background:var(--amber);color:var(--bg);border:none;cursor:pointer;text-transform:uppercase;letter-spacing:.08em}
+.bgimg{position:absolute;top:0;left:0;opacity:.18;pointer-events:none;z-index:0}
+.bgctl{padding:6px 5px;border-top:1px solid var(--border);flex-shrink:0}
+.bgctl label{font-size:7px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:3px}
+.bgctl input[type=file]{font-size:7px;color:var(--muted);width:100%}
+.bgctl input[type=range]{width:100%;margin:3px 0;accent-color:var(--amber)}
+/* legend */
+.leg{border-top:1px solid var(--border);background:var(--surface);padding:5px 14px;display:flex;gap:12px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px;font-size:8px;color:var(--muted)}
+.ld{width:9px;height:9px;border:1px solid}
+.sbr{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:7px;color:var(--muted)}
+.sbl{width:60px;height:2px;background:var(--muted);position:relative}
+.sbl::before,.sbl::after{content:'';position:absolute;width:1px;height:5px;background:var(--muted);top:-1.5px}
+.sbl::before{left:0}.sbl::after{right:0}
+.zoom{display:flex;align-items:center;gap:4px;margin-left:12px}
+.zbtn{width:20px;height:20px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-family:inherit}
+.zbtn:hover{border-color:var(--amber);color:var(--amber)}
+.zlbl{font-size:7px;color:var(--muted);min-width:28px;text-align:center}
+/* add form */
+.sb-add{padding:6px 5px;border-top:1px solid var(--border);flex-shrink:0}
+.sb-add input[type=text],.sb-add input[type=number]{width:100%;padding:3px 5px;font-size:8px;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--cream);margin-bottom:3px}
+.sb-add input:focus{border-color:var(--amber);outline:none}
+.sb-row{display:flex;align-items:center;gap:3px}
+.sb-row input{flex:1;min-width:0}
+.sb-add button{width:100%;margin-top:4px;padding:4px;font-size:8px;font-family:inherit;letter-spacing:.1em;text-transform:uppercase;background:var(--amber);color:var(--bg);border:none;cursor:pointer}
+.sb-add button:hover{filter:brightness(1.15)}
+/* publish modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-bg.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);padding:24px;max-width:400px;width:100%}
+.modal h2{font-size:14px;letter-spacing:.15em;margin-bottom:14px;color:var(--amber);text-transform:uppercase}
+.modal p{font-size:10px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+.modal input{width:100%;padding:8px 12px;font-family:inherit;font-size:10px;background:var(--bg);border:1px solid var(--border);color:var(--cream);outline:none;margin-bottom:10px}
+.modal input:focus{border-color:var(--amber)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.pub-status{font-size:9px;margin-top:10px;letter-spacing:.05em}
+.pub-status.ok{color:var(--green)}.pub-status.err{color:var(--red)}
+/* toast */
+.toast{position:fixed;bottom:16px;right:16px;padding:8px 16px;font-size:9px;letter-spacing:.08em;background:var(--surface);border:1px solid var(--border);color:var(--cream);z-index:200;opacity:0;transform:translateY(8px);transition:all .3s}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-color:var(--green)}.toast.err{border-color:var(--red)}
+
+/* ── VIEW SWITCHER ── */
+.view-tabs{display:flex;gap:2px;margin-left:12px}
+.view-tab{padding:4px 14px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.view-tab.on{background:var(--amber);color:var(--bg);border-color:var(--amber)}
+.view-tab:hover:not(.on){border-color:var(--amber);color:var(--amber)}
+.view-panel{display:none;flex:1;overflow:hidden}
+.view-panel.active{display:flex}
+#view-content,#view-photos{display:none;flex:1;overflow-y:auto;padding:0}
+#view-content.active,#view-photos.active{display:block}
+
+/* ── CONTENT EDITOR ── */
+.ce-wrap{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
+.ce-section{border:1px solid var(--border);margin-bottom:8px;background:var(--surface)}
+.ce-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;transition:background .15s}
+.ce-section-hdr:hover{background:var(--surface2)}
+.ce-section-hdr h3{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);font-weight:normal}
+.ce-section-hdr .ce-arrow{font-size:10px;color:var(--muted);transition:transform .2s}
+.ce-section.open .ce-arrow{transform:rotate(180deg)}
+.ce-section-body{display:none;padding:12px 14px;border-top:1px solid var(--border)}
+.ce-section.open .ce-section-body{display:block}
+.ce-field{margin-bottom:12px}
+.ce-field:last-child{margin-bottom:0}
+.ce-label{font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.ce-label .ce-tag{font-size:6px;padding:1px 4px;background:var(--border);color:var(--muted);letter-spacing:.05em}
+.ce-input{width:100%;padding:6px 10px;font-size:10px;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--cream);outline:none;line-height:1.5}
+.ce-input:focus{border-color:var(--amber)}
+textarea.ce-input{min-height:60px;resize:vertical}
+.ce-preview-toggle{font-size:7px;color:var(--amber);cursor:pointer;margin-left:auto;letter-spacing:.08em;text-transform:uppercase}
+.ce-preview{margin-top:6px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);font-size:10px;line-height:1.6;color:var(--cream);display:none}
+.ce-preview.show{display:block}
+.ce-preview strong{color:var(--amber)}
+.ce-preview em{color:var(--amber);font-style:italic}
+
+/* toolbar */
+.ce-toolbar{display:flex;gap:2px;margin-bottom:2px}
+.ce-tb-btn{padding:3px 8px;font-size:10px;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--muted);cursor:pointer;line-height:1}
+.ce-tb-btn:hover{border-color:var(--amber);color:var(--amber)}
+.ce-tb-btn b{font-weight:bold}
+.ce-tb-btn i{font-style:italic}
+
+/* array items */
+.ce-array-item{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px;padding:8px;background:var(--bg);border:1px solid var(--border)}
+.ce-array-item .ce-input{border:none;padding:4px 6px;background:transparent}
+.ce-array-item .ce-input:focus{box-shadow:0 0 0 1px var(--amber)}
+.ce-array-rm{width:20px;height:20px;border:none;background:var(--red);color:#fff;font-size:10px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:inherit;margin-top:2px}
+.ce-array-rm:hover{filter:brightness(1.2)}
+.ce-array-add{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;font-size:8px;font-family:inherit;letter-spacing:.08em;text-transform:uppercase;background:var(--surface2);border:1px solid var(--border);color:var(--amber);cursor:pointer;margin-top:4px}
+.ce-array-add:hover{border-color:var(--amber)}
+.ce-check{display:flex;align-items:center;gap:6px}
+.ce-check input[type=checkbox]{accent-color:var(--amber);width:14px;height:14px}
+
+/* save bar */
+.ce-save-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 14px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.ce-save-bar .ce-status{font-size:8px;color:var(--muted);margin-right:auto}
+.ce-btn{padding:6px 18px;font-size:9px;font-family:inherit;letter-spacing:.1em;text-transform:uppercase;border:none;cursor:pointer}
+.ce-btn-save{background:var(--amber);color:var(--bg);font-weight:bold}
+.ce-btn-save:hover{filter:brightness(1.15)}
+.ce-btn-reset{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.ce-btn-reset:hover{border-color:var(--amber);color:var(--amber)}
+
+/* ── FOTO MANAGER ── */
+.pm-wrap{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
+.pm-section{margin-bottom:24px}
+.pm-section h3{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+.pm-grid{display:grid;gap:12px}
+.pm-grid.strip{grid-template-columns:1fr 1fr 1fr}
+.pm-grid.hero{grid-template-columns:1fr}
+.pm-slot{aspect-ratio:16/9;background:var(--surface);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s}
+.pm-slot:hover{border-color:var(--amber)}
+.pm-slot.has-photo{border-style:solid}
+.pm-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pm-slot .pm-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;gap:8px}
+.pm-slot:hover .pm-overlay{display:flex}
+.pm-slot .pm-icon{color:var(--muted);font-size:24px}
+.pm-slot .pm-label{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.pm-slot .pm-size{font-size:7px;color:var(--muted);margin-top:2px}
+.pm-overlay-btn{padding:4px 10px;font-size:8px;font-family:inherit;letter-spacing:.08em;text-transform:uppercase;border:1px solid;cursor:pointer}
+.pm-overlay-btn.change{background:var(--amber);color:var(--bg);border-color:var(--amber)}
+.pm-overlay-btn.remove{background:transparent;color:var(--red);border-color:var(--red)}
+.pm-save-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 14px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.pm-save-bar .pm-status{font-size:8px;color:var(--muted);margin-right:auto}
+.pm-progress{font-size:8px;color:var(--amber);margin-right:8px}
+
+@media(max-width:700px){
+  .view-tabs{margin-left:0;width:100%;justify-content:center}
+  .ce-wrap,.pm-wrap{padding:12px 10px 60px}
+  .pm-grid.strip{grid-template-columns:1fr}
+  .ce-array-item{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-gate">
+  <div class="auth-box">
+    <h1>Werk<span>plaats</span>17</h1>
+    <p>Admin panel</p>
+    <input type="password" id="auth-pw" placeholder="Wachtwoord" autofocus>
+    <div class="auth-err" id="auth-err">Onjuist wachtwoord</div>
+  </div>
+</div>
+
+<!-- EDITOR -->
+<div id="editor" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+<div class="hdr">
+  <h1>W17 — Admin</h1>
+  <div class="view-tabs">
+    <div class="view-tab on" data-view="plattegrond" onclick="switchView('plattegrond')">Plattegrond</div>
+    <div class="view-tab" data-view="content" onclick="switchView('content')">Content</div>
+    <div class="view-tab" data-view="photos" onclick="switchView('photos')">Foto's</div>
+  </div>
+  <div class="hint" id="fp-hint">Sleep = pan · Scroll = zoom · Klik object = bewerken · Delete = verwijder</div>
+  <div class="hdr-btns" id="fp-btns">
+    <button class="hbtn hbtn-pub" id="btn-save">Opslaan &amp; Publiceer</button>
+    <button class="hbtn" id="btn-export">Export</button>
+  </div>
+</div>
+<!-- ═══ VIEW: PLATTEGROND ═══ -->
+<div id="view-plattegrond" class="view-panel active" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+<div class="wrap">
+<div class="sb">
+  <div style="padding:5px 5px 0;display:flex;gap:2px">
+    <div class="tab on" id="t0" onclick="show(0)" style="flex:1;text-align:center">BG</div>
+  </div>
+  <div class="sb-h">Objecten</div>
+  <div class="sb-s">
+    <div class="cat">Zones</div>
+    <div class="item" draggable="true" data-w="300" data-h="200" data-l="Magazijn" data-c="rgba(224,154,47,.5)" data-bg="rgba(224,154,47,.13)" data-room="1"><div class="sw" style="background:rgba(224,154,47,.5)"></div>Magazijn</div>
+    <div class="item" draggable="true" data-w="120" data-h="90" data-l="Kantoor" data-c="rgba(110,150,220,.5)" data-bg="rgba(110,150,220,.13)" data-room="1"><div class="sw" style="background:rgba(110,150,220,.5)"></div>Kantoor</div>
+    <div class="item" draggable="true" data-w="60" data-h="60" data-l="Keuken" data-c="rgba(140,200,140,.5)" data-bg="rgba(140,200,140,.13)" data-room="1"><div class="sw" style="background:rgba(140,200,140,.5)"></div>Keuken</div>
+    <div class="item" draggable="true" data-w="45" data-h="60" data-l="Trap" data-c="rgba(180,140,80,.45)" data-bg="rgba(180,140,80,.13)" data-room="1"><div class="sw" style="background:rgba(180,140,80,.45)"></div>Trap</div>
+    <div class="item" draggable="true" data-w="90" data-h="60" data-l="Entree" data-c="rgba(100,180,220,.5)" data-bg="rgba(100,180,220,.13)" data-room="1"><div class="sw" style="background:rgba(100,180,220,.5)"></div>Entree</div>
+    <div class="item" draggable="true" data-w="45" data-h="45" data-l="Toilet" data-c="rgba(120,160,220,.5)" data-bg="rgba(120,160,220,.18)" data-room="1"><div class="sw" style="background:rgba(120,160,220,.5)"></div>Toilet</div>
+    <div class="item" draggable="true" data-w="60" data-h="45" data-l="Berging" data-c="rgba(160,140,120,.5)" data-bg="rgba(160,140,120,.13)" data-room="1"><div class="sw" style="background:rgba(160,140,120,.5)"></div>Berging</div>
+    <div class="item" draggable="true" data-w="90" data-h="60" data-l="Overloop" data-c="rgba(200,180,140,.5)" data-bg="rgba(200,180,140,.13)" data-room="1"><div class="sw" style="background:rgba(200,180,140,.5)"></div>Overloop</div>
+    <div class="item" draggable="true" data-w="200" data-h="200" data-l="Vide" data-c="rgba(255,255,255,.12)" data-bg="rgba(255,255,255,.03)" data-room="1"><div class="sw" style="background:rgba(255,255,255,.12)"></div>Vide</div>
+    <div class="item" draggable="true" data-w="200" data-h="150" data-l="Vloer" data-c="rgba(180,100,220,.5)" data-bg="rgba(180,100,220,.13)" data-room="1"><div class="sw" style="background:rgba(180,100,220,.5)"></div>Vloer/Entresol</div>
+    <div class="item" draggable="true" data-w="300" data-h="6" data-l="Muur" data-c="rgba(255,255,255,.35)" data-bg="rgba(74,68,56,1)" data-room="1"><div class="sw" style="background:var(--wall)"></div>Muur (10m)</div>
+
+        <div class="cat">Machines</div>
+    <div class="item" draggable="true" data-w="210" data-h="120" data-l="Formaatzaag 700x400" data-c="#E09A2F" data-bg="rgba(224,154,47,.13)"><div class="sw" style="background:#E09A2F"></div>Formaatzaag 700x400</div>
+    <div class="item" draggable="true" data-w="54" data-h="30" data-l="Vlak/Vandiktebank" data-c="#E09A2F" data-bg="rgba(224,154,47,.13)"><div class="sw" style="background:#E09A2F"></div>Vlak/Vandiktebank</div>
+    <div class="item" draggable="true" data-w="30" data-h="54" data-l="Lintzaag" data-c="#E09A2F" data-bg="rgba(224,154,47,.13)"><div class="sw" style="background:#E09A2F"></div>Lintzaag</div>
+    <div class="item" draggable="true" data-w="36" data-h="24" data-l="Metaalzaag" data-c="#d07828" data-bg="rgba(208,120,40,.13)"><div class="sw" style="background:#d07828"></div>Metaalzaag</div>
+    <div class="item" draggable="true" data-w="42" data-h="42" data-l="Straalcabine" data-c="#d07828" data-bg="rgba(208,120,40,.13)"><div class="sw" style="background:#d07828"></div>Straalcabine</div>
+    <div class="item" draggable="true" data-w="18" data-h="18" data-l="3D Printer" data-c="#80a0d0" data-bg="rgba(128,160,208,.13)"><div class="sw" style="background:#80a0d0"></div>3D Printer</div>
+    <div class="item" draggable="true" data-w="150" data-h="27" data-l="Rijgatenboormachine" data-c="#E09A2F" data-bg="rgba(224,154,47,.13)"><div class="sw" style="background:#E09A2F"></div>Rijgatenboormachine</div>
+    <div class="cat">Werkplekken</div>
+    <div class="item" draggable="true" data-w="72" data-h="24" data-l="Werkbank 2.4m" data-c="#70b080" data-bg="rgba(112,176,128,.13)"><div class="sw" style="background:#70b080"></div>Werkbank 2.4m</div>
+    <div class="item" draggable="true" data-w="48" data-h="24" data-l="Werkbank 1.6m" data-c="#70b080" data-bg="rgba(112,176,128,.13)"><div class="sw" style="background:#70b080"></div>Werkbank 1.6m</div>
+    <div class="item" draggable="true" data-w="54" data-h="27" data-l="Bureau 180x90" data-c="#7090a0" data-bg="rgba(112,144,160,.13)"><div class="sw" style="background:#7090a0"></div>Bureau 180x90</div>
+    <div class="item" draggable="true" data-w="18" data-h="18" data-l="Bureaustoel" data-c="#7090a0" data-bg="rgba(112,144,160,.13)"><div class="sw" style="background:#7090a0"></div>Bureaustoel</div>
+    <div class="cat">Opslag</div>
+    <div class="item" draggable="true" data-w="75" data-h="63" data-l="Draagarmstelling 250x210" data-c="#a08060" data-bg="rgba(160,128,96,.15)"><div class="sw" style="background:#a08060"></div>Draagarmstelling 250x210</div>
+    <div class="item" draggable="true" data-w="105" data-h="36" data-l="Palletstelling 3.5x1.2" data-c="#a08060" data-bg="rgba(160,128,96,.15)"><div class="sw" style="background:#a08060"></div>Palletstelling 3.5x1.2</div>
+    <div class="item" draggable="true" data-w="24" data-h="24" data-l="Opslag" data-c="#a08060" data-bg="rgba(160,128,96,.15)"><div class="sw" style="background:#a08060"></div>Opslag</div>
+    <div class="item" draggable="true" data-w="24" data-h="30" data-l="Kar 80x100" data-c="#a08060" data-bg="rgba(160,128,96,.15)"><div class="sw" style="background:#a08060"></div>Kar 80x100</div>
+    <div class="item" draggable="true" data-w="75" data-h="18" data-l="Platenkar 250x60" data-c="#a08060" data-bg="rgba(160,128,96,.15)"><div class="sw" style="background:#a08060"></div>Platenkar 250x60</div>
+    <div class="cat">Infra</div>
+    <div class="item" draggable="true" data-w="101" data-h="12" data-l="Overheaddeur 3.35m" data-type="overhead" data-c="#E09A2F" data-bg="rgba(224,154,47,.15)"><div class="sw" style="background:#E09A2F"></div>Overheaddeur 3.35m</div>
+    <div class="item" draggable="true" data-w="27" data-h="12" data-l="Toegangsdeur" data-type="door" data-c="#b0c0d0" data-bg="rgba(176,192,208,.1)"><div class="sw" style="background:#b0c0d0"></div>Toegangsdeur</div>
+    <div class="item" draggable="true" data-w="24" data-h="30" data-l="Trap" data-c="#9070c0" data-bg="rgba(144,112,192,.15)"><div class="sw" style="background:#9070c0"></div>Trap</div>
+    <div class="item" draggable="true" data-w="72" data-h="39" data-l="Afzuiging 240x130" data-c="#607080" data-bg="rgba(96,112,128,.15)"><div class="sw" style="background:#607080"></div>Afzuiging 240x130</div>
+    <div class="item" draggable="true" data-w="15" data-h="15" data-l="Compressor" data-c="#607080" data-bg="rgba(96,112,128,.15)"><div class="sw" style="background:#607080"></div>Compressor</div>
+    <div class="cat">Huurunits</div>
+    <div class="item" draggable="true" data-w="150" data-h="150" data-l="Huurunit ~25m²" data-c="#50b478" data-bg="rgba(80,180,120,.1)" data-type="huurunit"><div class="sw" style="background:#50b478"></div>Huurunit ~25m²</div>
+    <div class="item" draggable="true" data-w="134" data-h="134" data-l="Huurunit ~20m²" data-c="#50b478" data-bg="rgba(80,180,120,.1)" data-type="huurunit"><div class="sw" style="background:#50b478"></div>Huurunit ~20m²</div>
+  </div>
+  <div class="sb-add">
+    <div class="cat">+ Eigen object</div>
+    <input type="text" id="addN" placeholder="Naam" spellcheck="false">
+    <div class="sb-row">
+      <input type="number" id="addB" placeholder="B cm" min="1">
+      <span style="color:var(--muted);font-size:8px">×</span>
+      <input type="number" id="addD" placeholder="D cm" min="1">
+    </div>
+    <div class="sb-row">
+      <span style="color:var(--muted);font-size:7px">Kleur</span>
+      <input type="color" id="addC" value="#c0a070" style="width:24px;height:18px;padding:0;border:1px solid var(--border);background:var(--bg);cursor:pointer;flex-shrink:0">
+    </div>
+    <button id="addBtn">Toevoegen</button>
+  </div>
+  <div class="bgctl" style="border-top:1px solid var(--border)">
+    <details style="cursor:pointer">
+      <summary style="font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);padding:2px 0;user-select:none">Tekening inlezen</summary>
+      <div style="padding-top:4px">
+        <input type="file" id="scanFile" accept="image/*" style="font-size:7px;color:var(--muted);width:100%">
+        <input type="password" id="apiKey" placeholder="API key (Anthropic)" style="margin-top:3px;padding:3px 5px;font-size:7px;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--cream);width:100%">
+        <button id="scanBtn" style="width:100%;margin-top:4px;padding:5px;font-size:8px;font-family:inherit;letter-spacing:.1em;text-transform:uppercase;background:var(--amber);color:var(--bg);border:none;cursor:pointer" disabled>Scan ruimtes</button>
+        <div id="scanStatus" style="font-size:7px;color:var(--muted);margin-top:3px;min-height:12px"></div>
+        <label style="margin-top:4px;font-size:7px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block">Achtergrond transparantie</label>
+        <input type="range" id="bgOp" min="0" max="60" value="20" style="width:100%;accent-color:var(--amber)">
+        <div style="display:flex;gap:3px;margin-top:3px">
+          <button class="zbtn sm" onclick="toggleBg()" style="font-size:6px;width:auto;padding:0 5px;height:16px">Achtergrond aan/uit</button>
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<div class="cv" id="canvas"><div id="fp"></div></div>
+
+<!-- PROPERTIES PANEL -->
+<div class="props" id="props-panel">
+  <div class="props-h">Eigenschappen</div>
+  <div class="props-empty" id="props-empty">Selecteer een object<br>of sleep er een naar het canvas</div>
+  <div class="props-scroll" id="props-form" style="display:none">
+    <div class="pf">
+      <div class="pf-label">Naam</div>
+      <input class="pf-input" id="pf-name" type="text" spellcheck="false">
+    </div>
+    <div class="pf">
+      <div class="pf-label">Type</div>
+      <select class="pf-select" id="pf-type">
+        <option value="">Overig</option>
+        <option value="machine">Machine</option>
+        <option value="werkplek">Werkplek</option>
+        <option value="opslag">Opslag</option>
+        <option value="infra">Infra</option>
+        <option value="huurunit">Huurunit</option>
+        <option value="overhead">Overheaddeur</option>
+        <option value="door">Toegangsdeur</option>
+      </select>
+    </div>
+    <div class="pf" id="pf-status-wrap">
+      <div class="pf-label">Status</div>
+      <select class="pf-select" id="pf-status">
+        <option value="">N.v.t.</option>
+        <option value="beschikbaar">Beschikbaar</option>
+        <option value="bezet">Bezet</option>
+        <option value="gereserveerd">Gereserveerd</option>
+      </select>
+    </div>
+    <div class="pf">
+      <div class="pf-label">Verdieping</div>
+      <select class="pf-select" id="pf-floor">
+        <option value="0">Begane grond</option>
+      </select>
+    </div>
+    <div class="pf-divider"></div>
+    <div class="pf">
+      <div class="pf-label">Afmetingen (cm)</div>
+      <div class="pf-row">
+        <input class="pf-input" id="pf-w" type="number" min="1" placeholder="Breedte">
+        <span>×</span>
+        <input class="pf-input" id="pf-h" type="number" min="1" placeholder="Diepte">
+      </div>
+    </div>
+    <div class="pf">
+      <div class="pf-label">Positie (px)</div>
+      <div class="pf-row">
+        <input class="pf-input" id="pf-x" type="number" placeholder="X">
+        <span>,</span>
+        <input class="pf-input" id="pf-y" type="number" placeholder="Y">
+      </div>
+    </div>
+    <div class="pf">
+      <div class="pf-label">Rotatie (°)</div>
+      <input class="pf-input" id="pf-rot" type="number" min="0" max="359" step="90" value="0">
+    </div>
+    <div class="pf-divider"></div>
+    <div class="pf">
+      <div class="pf-label">Randkleur</div>
+      <input class="pf-color" id="pf-color" type="color" value="#E09A2F">
+    </div>
+    <div class="pf">
+      <div class="pf-label">Achtergrondkleur</div>
+      <input class="pf-color" id="pf-bgcolor" type="color" value="#2e2920">
+    </div>
+    <div class="pf">
+      <div class="pf-label">Achtergrond opacity</div>
+      <div class="pf-row">
+        <input class="pf-input" id="pf-bgopacity" type="range" min="0" max="100" value="13" style="flex:1">
+        <span id="pf-bgopacity-val" style="min-width:24px;text-align:right">13%</span>
+      </div>
+    </div>
+    <div class="pf-divider"></div>
+    <button class="pf-btn pf-btn-dup" id="pf-dup">Dupliceren</button>
+    <button class="pf-btn pf-btn-del" id="pf-del">Verwijderen</button>
+  </div>
+</div>
+</div>
+
+<div class="leg">
+  <div class="li"><div class="ld" style="border-color:rgba(224,154,47,.5);background:rgba(224,154,47,.13)"></div>Mag</div>
+  <div class="li"><div class="ld" style="border-color:rgba(110,150,220,.5);background:rgba(110,150,220,.13)"></div>Kant</div>
+  <div class="li"><div class="ld" style="border-color:rgba(180,140,80,.45);background:rgba(180,140,80,.13)"></div>Trap</div>
+  <div class="li"><div class="ld" style="border-color:rgba(100,180,220,.5);background:rgba(100,180,220,.13)"></div>Entr</div>
+  <div class="li"><div class="ld" style="border-color:rgba(180,100,220,.5);background:rgba(180,100,220,.13)"></div>Vloer</div>
+  <div class="li"><div class="ld" style="border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.03)"></div>Vide</div>
+  <div class="sbr"><span>0</span><div class="sbl"></div><span>2m</span></div>
+  <div class="zoom">
+    <button class="zbtn" onclick="doZoom(-0.15)">−</button>
+    <span class="zlbl" id="zlbl">100%</span>
+    <button class="zbtn" onclick="doZoom(0.15)">+</button>
+    <button class="zbtn" onclick="resetView()" style="font-size:7px;width:auto;padding:0 5px">Reset</button>
+  </div>
+</div>
+</div><!-- /view-plattegrond -->
+
+<!-- ═══ VIEW: CONTENT ═══ -->
+<div id="view-content">
+<div class="ce-wrap" id="ce-form"></div>
+<div class="ce-save-bar">
+  <span class="ce-status" id="ce-status"></span>
+  <button class="ce-btn ce-btn-reset" onclick="ceReset()">Reset</button>
+  <button class="ce-btn ce-btn-save" id="ce-save" onclick="ceSave()">Opslaan &amp; Publiceer</button>
+</div>
+</div>
+
+<!-- ═══ VIEW: FOTO'S ═══ -->
+<div id="view-photos">
+<div class="pm-wrap">
+  <div class="pm-section">
+    <h3>Hero afbeelding</h3>
+    <div class="pm-grid hero">
+      <div class="pm-slot" data-slot="hero" onclick="pmPick('hero')">
+        <span class="pm-icon">📷</span>
+        <span class="pm-label">Klik of sleep een foto</span>
+      </div>
+    </div>
+  </div>
+  <div class="pm-section">
+    <h3>Fotostrip (3 foto's)</h3>
+    <div class="pm-grid strip">
+      <div class="pm-slot" data-slot="strip-0" onclick="pmPick('strip-0')">
+        <span class="pm-icon">📷</span>
+        <span class="pm-label" id="pm-label-0">Werkvloer</span>
+      </div>
+      <div class="pm-slot" data-slot="strip-1" onclick="pmPick('strip-1')">
+        <span class="pm-icon">📷</span>
+        <span class="pm-label" id="pm-label-1">Machines</span>
+      </div>
+      <div class="pm-slot" data-slot="strip-2" onclick="pmPick('strip-2')">
+        <span class="pm-icon">📷</span>
+        <span class="pm-label" id="pm-label-2">Entresol</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="pm-save-bar">
+  <span class="pm-status" id="pm-status"></span>
+  <span class="pm-progress" id="pm-progress"></span>
+  <button class="ce-btn ce-btn-save" id="pm-save" onclick="pmSave()">Opslaan &amp; Publiceer</button>
+</div>
+</div>
+
+</div><!-- /editor -->
+
+<!-- TOKEN SETUP MODAL (eenmalig) -->
+<div class="modal-bg" id="token-modal">
+  <div class="modal">
+    <h2>GitHub Token</h2>
+    <p>Eenmalige setup. Token wordt opgeslagen in je browser zodat Opslaan direct publiceert.</p>
+    <input type="text" id="gh-repo" placeholder="user/repo" value="midirectiekade14-debug/werkplaats17-rotterdam">
+    <input type="password" id="gh-token" placeholder="GitHub Personal Access Token (classic)">
+    <div class="modal-btns">
+      <button class="hbtn" onclick="document.getElementById('token-modal').classList.remove('show')">Annuleer</button>
+      <button class="hbtn hbtn-pub" id="token-save">Opslaan</button>
+    </div>
+    <div class="pub-status" id="pub-status"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="pm-file-input" accept="image/*" style="display:none">
+
+<script src="content.js"></script>
+<script src="photos.js"></script>
+<script>
+// ╔════════════════════════════════════════════╗
+// ║  AUTH                                      ║
+// ╚════════════════════════════════════════════╝
+const PASS_HASH='0e122c4826c8a99766c3bdbeb89ba9e7446f9ff73b61996e5deed73c48fce803';
+async function sha256(m){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+const authGate=document.getElementById('auth-gate');
+if(sessionStorage.getItem('w17auth')==='ok'){authGate.style.display='none';document.getElementById('editor').style.display='flex';setTimeout(init,0);}
+document.getElementById('auth-pw').addEventListener('keydown',async e=>{
+  if(e.key!=='Enter')return;
+  if(await sha256(e.target.value)===PASS_HASH){
+    sessionStorage.setItem('w17auth','ok');authGate.style.display='none';document.getElementById('editor').style.display='flex';init();
+  }else{document.getElementById('auth-err').classList.add('show');e.target.value='';setTimeout(()=>document.getElementById('auth-err').classList.remove('show'),2000);}
+});
+
+
+// PLATTEGROND ENGINE (Oud Camp style - simple canvas, free-form rooms)
+const S=0.03, SNAP=3, FPW=900, FPH=550;
+let floor=0, sel=null, drag=null;
+const fp=document.getElementById('fp');
+const cv=document.getElementById('canvas');
+const bgImages={};
+
+function draw(){
+  Array.from(fp.children).filter(function(d){return !d.classList.contains('pl')&&!d.classList.contains('bgimg')}).forEach(function(d){d.remove()});
+  fp.querySelectorAll('.pl').forEach(function(d){d.style.display=(+d.dataset.floor===floor)?'':'none'});
+  fp.style.cssText='position:relative;width:'+FPW+'px;height:'+FPH+'px;min-width:'+FPW+'px;min-height:'+FPH+'px;transform:translate('+panX+'px,'+panY+'px) scale('+zoom+');transform-origin:0 0';
+  var g=document.createElement('div');
+  g.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:'+(S*1000)+'px '+(S*1000)+'px';
+  fp.insertBefore(g,fp.firstChild);
+  fp.querySelectorAll('.bgimg').forEach(function(img){img.style.display=(+img.dataset.floor===floor)?'':'none'});
+}
+
+// TABS (3 floors)
+window.show=function(f){floor=f;document.getElementById('t0').classList.toggle('on',f===0);document.getElementById('t1').classList.toggle('on',f===1);document.getElementById('t2').classList.toggle('on',f===2);draw()};
+
+// ZOOM & PAN
+var zoom=1,panX=0,panY=0;
+function applyTransform(){
+  fp.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')';
+  document.getElementById('zlbl').textContent=Math.round(zoom*100)+'%';
+}
+window.doZoom=function(delta){zoom=Math.min(3,Math.max(0.3,zoom+delta));applyTransform();};
+window.resetView=function(){zoom=1;panX=0;panY=0;applyTransform();};
+
+cv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var rect=cv.getBoundingClientRect();
+  var mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  var oldZ=zoom;
+  zoom=Math.min(3,Math.max(0.3,zoom-e.deltaY*0.002));
+  var ratio=zoom/oldZ;
+  panX=mx-(mx-panX)*ratio;
+  panY=my-(my-panY)*ratio;
+  applyTransform();
+},{passive:false});
+
+var panning=false,panSX=0,panSY=0,panPX=0,panPY=0;
+cv.addEventListener('mousedown',function(e){
+  if(e.target.closest('.pl'))return;
+  if(e.button!==0)return;
+  panning=true;panSX=e.clientX;panSY=e.clientY;panPX=panX;panPY=panY;
+  cv.classList.add('grabbing');
+});
+document.addEventListener('mousemove',function(e){
+  if(!panning)return;
+  panX=panPX+(e.clientX-panSX);panY=panPY+(e.clientY-panSY);
+  applyTransform();
+});
+document.addEventListener('mouseup',function(){if(panning){panning=false;cv.classList.remove('grabbing');}});
+
+// Touch
+var touches={},lastDist=0;
+cv.addEventListener('touchstart',function(e){
+  if(e.target.closest('.pl'))return;e.preventDefault();
+  for(var i=0;i<e.changedTouches.length;i++)touches[e.changedTouches[i].identifier]={x:e.changedTouches[i].clientX,y:e.changedTouches[i].clientY};
+  var ids=Object.keys(touches);
+  if(ids.length===1){panPX=panX;panPY=panY;panSX=touches[ids[0]].x;panSY=touches[ids[0]].y;}
+  if(ids.length===2){var t0=touches[ids[0]],t1=touches[ids[1]];lastDist=Math.hypot(t1.x-t0.x,t1.y-t0.y);}
+},{passive:false});
+cv.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  for(var i=0;i<e.changedTouches.length;i++)touches[e.changedTouches[i].identifier]={x:e.changedTouches[i].clientX,y:e.changedTouches[i].clientY};
+  var ids=Object.keys(touches);
+  if(ids.length===1){panX=panPX+(touches[ids[0]].x-panSX);panY=panPY+(touches[ids[0]].y-panSY);applyTransform();}
+  if(ids.length>=2){var t0=touches[ids[0]],t1=touches[ids[1]],dist=Math.hypot(t1.x-t0.x,t1.y-t0.y);if(lastDist>0){var sc=dist/lastDist;zoom=Math.min(3,Math.max(0.3,zoom*sc));}lastDist=dist;applyTransform();}
+},{passive:false});
+cv.addEventListener('touchend',function(e){
+  for(var i=0;i<e.changedTouches.length;i++)delete touches[e.changedTouches[i].identifier];
+  var ids=Object.keys(touches);
+  if(ids.length===1){panPX=panX;panPY=panY;panSX=touches[ids[0]].x;panSY=touches[ids[0]].y;}
+  if(ids.length<2)lastDist=0;
+});
+
+// SCAN TEKENING (AI room detection)
+var scanData=null;
+document.getElementById('scanFile').addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();r.onload=function(){
+    scanData=r.result;
+    fp.querySelectorAll('.bgimg[data-floor="'+floor+'"]').forEach(function(d){d.remove()});
+    var img=document.createElement('img');img.className='bgimg';img.dataset.floor=floor;
+    img.src=scanData;img.style.opacity=document.getElementById('bgOp').value/100;
+    img.style.width='100%';img.style.height='100%';img.style.objectFit='contain';
+    fp.insertBefore(img,fp.firstChild);
+    bgImages[floor]=scanData;
+    document.getElementById('scanBtn').disabled=false;
+    document.getElementById('scanStatus').textContent='Afbeelding geladen - klik Scan';
+  };r.readAsDataURL(f);
+});
+
+document.getElementById('scanBtn').addEventListener('click',async function(){
+  if(!scanData)return;
+  var btn=this;btn.disabled=true;
+  var status=document.getElementById('scanStatus');
+  status.textContent='Ruimtes herkennen...';status.style.color='var(--amber)';
+  try{
+    var base64=scanData.split(',')[1];
+    var mediaType=scanData.split(';')[0].split(':')[1];
+    var apiKey=document.getElementById('apiKey').value.trim();
+    var headers={'Content-Type':'application/json','anthropic-version':'2023-06-01'};
+    if(apiKey){headers['x-api-key']=apiKey;headers['anthropic-dangerous-direct-browser-access']='true';}
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers,
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+          {type:'text',text:'Analyseer deze plattegrond. Geef ALLEEN een JSON array. Elk object: name, x_pct, y_pct, w_pct, h_pct (percentages 0-100). Geen markdown.'}
+        ]}]})
+    });
+    var data=await resp.json();
+    var text=data.content.map(function(c){return c.text||''}).join('');
+    var rooms=JSON.parse(text.replace(/```json|```/g,'').trim());
+    if(!Array.isArray(rooms)||!rooms.length){status.textContent='Geen ruimtes gevonden';status.style.color='#a03030';btn.disabled=false;return;}
+    var colors={'magazijn':{c:'rgba(224,154,47,.5)',bg:'rgba(224,154,47,.13)'},'kantoor':{c:'rgba(110,150,220,.5)',bg:'rgba(110,150,220,.13)'},'keuken':{c:'rgba(140,200,140,.5)',bg:'rgba(140,200,140,.13)'},'trap':{c:'rgba(180,140,80,.45)',bg:'rgba(180,140,80,.13)'},'entree':{c:'rgba(100,180,220,.5)',bg:'rgba(100,180,220,.13)'},'toilet':{c:'rgba(120,160,220,.5)',bg:'rgba(120,160,220,.18)'},'berging':{c:'rgba(160,140,120,.5)',bg:'rgba(160,140,120,.13)'},'overloop':{c:'rgba(200,180,140,.5)',bg:'rgba(200,180,140,.13)'},'vide':{c:'rgba(255,255,255,.12)',bg:'rgba(255,255,255,.03)'},'vloer':{c:'rgba(180,100,220,.5)',bg:'rgba(180,100,220,.13)'}};
+    var defCol={c:'rgba(200,180,140,.5)',bg:'rgba(200,180,140,.13)'};
+    rooms.forEach(function(rm){
+      var x=Math.round(rm.x_pct/100*FPW),y=Math.round(rm.y_pct/100*FPH);
+      var w=Math.max(12,Math.round(rm.w_pct/100*FPW)),h=Math.max(12,Math.round(rm.h_pct/100*FPH));
+      var key=(rm.name||'').toLowerCase().replace(/[^a-z]/g,'');
+      var col=null;Object.keys(colors).forEach(function(k){if(key.indexOf(k)!==-1&&!col)col=colors[k]});
+      if(!col)col=defCol;
+      place(x,y,{w:w,h:h,l:rm.name||'Ruimte',c:col.c,bg:col.bg,type:'',room:'1'});
+    });
+    status.textContent=rooms.length+' ruimtes geplaatst';status.style.color='var(--amber)';
+  }catch(err){console.error(err);status.textContent='Fout: '+err.message;status.style.color='#a03030';}
+  btn.disabled=false;
+});
+
+document.getElementById('bgOp').addEventListener('input',function(){
+  var val=this.value;fp.querySelectorAll('.bgimg[data-floor="'+floor+'"]').forEach(function(img){img.style.opacity=val/100});
+});
+window.toggleBg=function(){
+  fp.querySelectorAll('.bgimg[data-floor="'+floor+'"]').forEach(function(img){img.style.display=img.style.display==='none'?'':'none'});
+};
+
+// DRAG & DROP from sidebar
+function setupItem(item){
+  item.addEventListener('dragstart',function(e){
+    drag={w:+item.dataset.w,h:+item.dataset.h,l:item.dataset.l,c:item.dataset.c,bg:item.dataset.bg,type:item.dataset.type||'',room:item.dataset.room||''};
+    e.dataTransfer.effectAllowed='copy';
+  });
+  if(!item.querySelector('.item-del')){
+    var db=document.createElement('button');db.className='item-del';db.textContent='\u2715';
+    db.addEventListener('click',function(e){e.stopPropagation();e.preventDefault();item.remove();});
+    item.appendChild(db);
+  }
+}
+document.querySelectorAll('.item').forEach(setupItem);
+cv.addEventListener('dragover',function(e){e.preventDefault()});
+cv.addEventListener('drop',function(e){
+  e.preventDefault();if(!drag)return;
+  var rect=cv.getBoundingClientRect();
+  var x=Math.round(((e.clientX-rect.left-panX)/zoom-drag.w/2)/SNAP)*SNAP;
+  var y=Math.round(((e.clientY-rect.top-panY)/zoom-drag.h/2)/SNAP)*SNAP;
+  place(x,y,drag);drag=null;
+});
+
+// PLACE OBJECT (Oud Camp style with rooms, resize handles, edit popups)
+function place(x,y,data){
+  var d=document.createElement('div');d.className='pl'+(data.room?' room-pl':'');d.dataset.floor=floor;
+  d.style.cssText='position:absolute;left:'+x+'px;top:'+y+'px;width:'+data.w+'px;height:'+data.h+'px;';
+  var isDoor=data.type==='overhead'||data.type==='door';
+  var isRoom=!!data.room;
+
+  // Buttons
+  var dbtn=document.createElement('button');dbtn.className='db';dbtn.textContent='\u2715';
+  var cpbtn=document.createElement('button');cpbtn.className='cpb';cpbtn.textContent='+';
+  var ebtn=document.createElement('button');ebtn.className='eb';ebtn.textContent='E';
+  // Edit popup
+  var epop=document.createElement('div');epop.className='epop';
+  var enInp=document.createElement('input');enInp.className='en';enInp.placeholder='Naam';
+  var erow=document.createElement('div');erow.className='erow';
+  var ewInp=document.createElement('input');ewInp.className='ew';ewInp.type='number';ewInp.placeholder='B cm';
+  var exSpan=document.createElement('span');exSpan.textContent='\u00d7';
+  var ehInp=document.createElement('input');ehInp.className='eh';ehInp.type='number';ehInp.placeholder='D cm';
+  erow.appendChild(ewInp);erow.appendChild(exSpan);erow.appendChild(ehInp);
+  var eokBtn=document.createElement('button');eokBtn.className='eok';eokBtn.textContent='OK';
+  epop.appendChild(enInp);epop.appendChild(erow);epop.appendChild(eokBtn);
+  // Resize handles
+  var rhSE=document.createElement('div');rhSE.className='rh rh-se';
+  var rhE=document.createElement('div');rhE.className='rh rh-e';
+  var rhS=document.createElement('div');rhS.className='rh rh-s';
+
+  d.appendChild(dbtn);d.appendChild(cpbtn);d.appendChild(ebtn);
+  d.appendChild(epop);d.appendChild(rhSE);d.appendChild(rhE);d.appendChild(rhS);
+
+  if(!isRoom){
+    var rbtn=document.createElement('button');rbtn.className='rb';rbtn.textContent='\u21bb';
+    d.appendChild(rbtn);
+  }
+
+  if(isRoom){
+    var rm=document.createElement('div');rm.className='rm';rm.style.borderColor=data.c;rm.style.background=data.bg;
+    var rl=document.createElement('div');rl.className='rl';rl.style.color=data.c;rl.textContent=data.l;
+    var ra=document.createElement('div');ra.className='ra';
+    rm.appendChild(rl);rm.appendChild(ra);d.appendChild(rm);
+  }else if(isDoor){
+    var dw=document.createElement('div');dw.style.cssText='width:100%;height:100%;position:relative;overflow:hidden';
+    var topBar=document.createElement('div');topBar.style.cssText='position:absolute;left:0;right:0;top:0;height:4px;background:'+data.c+';opacity:.9';
+    dw.appendChild(topBar);
+    if(data.type==='overhead'){
+      var lines=document.createElement('div');lines.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:3px';
+      for(var li=0;li<5;li++){var ln=document.createElement('div');ln.style.cssText='width:1px;height:55%;background:'+data.c+';opacity:.4';lines.appendChild(ln);}
+      dw.appendChild(lines);
+    }else{
+      var arc=document.createElement('div');arc.style.cssText='position:absolute;bottom:1px;left:2px;right:2px;border-bottom:1px solid '+data.c+';border-right:1px solid '+data.c+';border-radius:0 0 80% 0;opacity:.5;height:80%';
+      dw.appendChild(arc);
+    }
+    var dlbl=document.createElement('div');dlbl.className='il';dlbl.style.cssText='position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:6px;color:'+data.c;dlbl.textContent=data.l;
+    dw.appendChild(dlbl);d.appendChild(dw);
+  }else{
+    var ib=document.createElement('div');ib.className='ib';ib.style.borderColor=data.c;ib.style.background=data.bg;
+    var il=document.createElement('div');il.className='il';il.style.color=data.c;il.textContent=data.l;
+    var idEl=document.createElement('div');idEl.className='id';idEl.textContent=Math.round(data.w/S/10)+'\u00d7'+Math.round(data.h/S/10)+'cm';
+    ib.appendChild(il);ib.appendChild(idEl);d.appendChild(ib);
+  }
+
+  d.dataset.c=data.c;d.dataset.bg=data.bg||'';d.dataset.type=data.type||'';d.dataset.l=data.l;d.dataset.rot='0';d.dataset.room=data.room||'';d.dataset.status=data.status||'';
+
+  function updateArea(){
+    var ra=d.querySelector('.ra');
+    if(ra){var wm=parseFloat(d.style.width)/S/1000,hm=parseFloat(d.style.height)/S/1000;ra.textContent=Math.round(wm*hm*10)/10+'m\u00b2';}
+    var idEl=d.querySelector('.id');
+    if(idEl)idEl.textContent=Math.round(parseFloat(d.style.width)/S/10)+'\u00d7'+Math.round(parseFloat(d.style.height)/S/10)+'cm';
+  }
+  updateArea();
+
+  // Huurunit status toggle
+  if(data.type==='huurunit'){
+    var stBtn=document.createElement('button');stBtn.className='stb';
+    var statuses=['beschikbaar','bezet','gereserveerd'];
+    function updateStBtn(){stBtn.dataset.st=d.dataset.status||'';stBtn.textContent=d.dataset.status||'status';}
+    updateStBtn();
+    stBtn.addEventListener('click',function(e){
+      e.stopPropagation();var cur=d.dataset.status||'',idx=statuses.indexOf(cur);
+      d.dataset.status=statuses[(idx+1)%statuses.length];
+      updateStBtn();applyStatusVisual(d);if(sel===d)populateProps(d);
+    });
+    d.appendChild(stBtn);applyStatusVisual(d);
+  }
+
+  // Delete
+  dbtn.addEventListener('click',function(e){e.stopPropagation();d.remove();if(sel===d){sel=null;hideProps();}});
+  // Rotate (not for rooms)
+  var rBtn=d.querySelector('.rb');
+  if(rBtn) rBtn.addEventListener('click',function(e){e.stopPropagation();if(isDoor){var r=(parseInt(d.dataset.rot||'0')+90)%360;d.dataset.rot=r.toString();d.lastElementChild.style.transform='rotate('+r+'deg)';}else{var ow=d.style.width,oh=d.style.height;d.style.width=oh;d.style.height=ow;updateArea();}if(sel===d)populateProps(d);});
+  // Edit popup
+  ebtn.addEventListener('click',function(e){e.stopPropagation();if(epop.classList.contains('on')){epop.classList.remove('on');return;}enInp.value=d.dataset.l;ewInp.value=Math.round(parseFloat(d.style.width)/S/10);ehInp.value=Math.round(parseFloat(d.style.height)/S/10);epop.classList.add('on');enInp.focus();});
+  epop.addEventListener('mousedown',function(e){e.stopPropagation()});
+  eokBtn.addEventListener('click',function(e){e.stopPropagation();var nn=enInp.value.trim(),nw=parseInt(ewInp.value),nh=parseInt(ehInp.value);if(nn){d.dataset.l=nn;var lbl=d.querySelector('.rl')||d.querySelector('.il');if(lbl)lbl.textContent=nn;}if(nw>0)d.style.width=Math.max(3,Math.round(nw*10*S))+'px';if(nh>0)d.style.height=Math.max(3,Math.round(nh*10*S))+'px';updateArea();epop.classList.remove('on');if(sel===d)populateProps(d);});
+  // Copy
+  cpbtn.addEventListener('click',function(e){e.stopPropagation();place(parseInt(d.style.left)+16,parseInt(d.style.top)+16,{w:parseInt(d.style.width),h:parseInt(d.style.height),l:d.dataset.l,c:d.dataset.c,bg:d.dataset.bg,type:d.dataset.type,room:d.dataset.room,status:d.dataset.status||''});});
+  // Resize handles
+  d.querySelectorAll('.rh').forEach(function(rh){
+    rh.addEventListener('mousedown',function(e){
+      e.stopPropagation();e.preventDefault();
+      var startX=e.clientX/zoom,startY=e.clientY/zoom;
+      var startW=parseFloat(d.style.width),startH=parseFloat(d.style.height);
+      var isE=rh.classList.contains('rh-e')||rh.classList.contains('rh-se');
+      var isS=rh.classList.contains('rh-s')||rh.classList.contains('rh-se');
+      var mv=function(e){
+        var dx=e.clientX/zoom-startX,dy=e.clientY/zoom-startY;
+        if(isE) d.style.width=Math.max(6,Math.round((startW+dx)/SNAP)*SNAP)+'px';
+        if(isS) d.style.height=Math.max(6,Math.round((startH+dy)/SNAP)*SNAP)+'px';
+        updateArea();
+      };
+      var up=function(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);if(sel===d)populateProps(d);};
+      document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+    });
+  });
+  // Select + drag
+  d.addEventListener('mousedown',function(e){
+    if(e.target.tagName==='BUTTON'||e.target.matches('input')||e.target.classList.contains('rh'))return;
+    e.stopPropagation();selectObj(d);
+    var startL=parseInt(d.style.left),startT=parseInt(d.style.top),sx=e.clientX,sy=e.clientY,moved=false;
+    var mv=function(e){moved=true;d.style.left=Math.round((startL+(e.clientX-sx)/zoom)/SNAP)*SNAP+'px';d.style.top=Math.round((startT+(e.clientY-sy)/zoom)/SNAP)*SNAP+'px';};
+    var up=function(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);if(moved&&sel===d)populateProps(d);};
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+  });
+  fp.appendChild(d);selectObj(d);
+}
+
+// Deselect on canvas click
+cv.addEventListener('mousedown',function(e){
+  if(!e.target.closest('.pl')&&!e.target.closest('.props')){if(sel){sel.classList.remove('sel');sel=null;hideProps();}}
+});
+
+// PROPERTIES PANEL
+var propsForm=document.getElementById('props-form'),propsEmpty=document.getElementById('props-empty');
+var pfName=document.getElementById('pf-name'),pfType=document.getElementById('pf-type'),pfStatus=document.getElementById('pf-status');
+var pfFloor=document.getElementById('pf-floor'),pfW=document.getElementById('pf-w'),pfH=document.getElementById('pf-h');
+var pfX=document.getElementById('pf-x'),pfY=document.getElementById('pf-y'),pfRot=document.getElementById('pf-rot');
+var pfColor=document.getElementById('pf-color'),pfBgColor=document.getElementById('pf-bgcolor'),pfBgOpacity=document.getElementById('pf-bgopacity');
+
+function selectObj(d){if(sel)sel.classList.remove('sel');sel=d;d.classList.add('sel');populateProps(d);}
+function hideProps(){propsForm.style.display='none';propsEmpty.style.display='';}
+
+function hexFromAny(c){
+  if(!c||c==='none'||c==='transparent')return '#1e1b17';
+  if(c.startsWith('#'))return c.length===4?'#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]:c;
+  var m=c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if(m)return '#'+[m[1],m[2],m[3]].map(function(x){return (+x).toString(16).padStart(2,'0')}).join('');
+  return '#7a7060';
+}
+function opacityFromBg(bg){if(!bg)return 13;var m=bg.match(/[\d.]+\)$/);return m?Math.round(parseFloat(m[0])*100):13;}
+function rgbaFromHexOpacity(hex,op){var r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16);return 'rgba('+r+','+g+','+b+','+(op/100).toFixed(2)+')';}
+
+function populateProps(d){
+  propsForm.style.display='';propsEmpty.style.display='none';
+  pfName.value=d.dataset.l||'';pfType.value=d.dataset.type||'';pfStatus.value=d.dataset.status||'';
+  pfFloor.value=d.dataset.floor||'0';
+  pfW.value=Math.round(parseFloat(d.style.width)/S/10);pfH.value=Math.round(parseFloat(d.style.height)/S/10);
+  pfX.value=parseInt(d.style.left);pfY.value=parseInt(d.style.top);
+  pfRot.value=d.dataset.rot||'0';pfColor.value=hexFromAny(d.dataset.c);
+  pfBgColor.value=hexFromAny(d.dataset.bg);pfBgOpacity.value=opacityFromBg(d.dataset.bg);
+  document.getElementById('pf-bgopacity-val').textContent=pfBgOpacity.value+'%';
+  document.getElementById('pf-status-wrap').style.display=(d.dataset.type==='huurunit')?'':'none';
+}
+
+function applyProp(){
+  if(!sel)return;var d=sel;
+  d.dataset.l=pfName.value;
+  var il=d.querySelector('.il');if(il)il.textContent=pfName.value;
+  var rl=d.querySelector('.rl');if(rl)rl.textContent=pfName.value;
+  d.dataset.type=pfType.value;d.dataset.status=pfStatus.value;
+  document.getElementById('pf-status-wrap').style.display=(pfType.value==='huurunit')?'':'none';
+  d.dataset.floor=pfFloor.value;d.style.display=(+pfFloor.value===floor)?'':'none';
+  var nw=parseInt(pfW.value),nh=parseInt(pfH.value);
+  if(nw>0)d.style.width=Math.max(3,Math.round(nw*10*S))+'px';
+  if(nh>0)d.style.height=Math.max(3,Math.round(nh*10*S))+'px';
+  var nx=parseInt(pfX.value),ny=parseInt(pfY.value);
+  if(!isNaN(nx))d.style.left=nx+'px';if(!isNaN(ny))d.style.top=ny+'px';
+  d.dataset.rot=pfRot.value||'0';
+  if(d.dataset.type==='overhead'||d.dataset.type==='door'){var inner=d.lastElementChild;if(inner)inner.style.transform='rotate('+d.dataset.rot+'deg)';}
+  d.dataset.c=pfColor.value;
+  var op=parseInt(pfBgOpacity.value)||0;d.dataset.bg=rgbaFromHexOpacity(pfBgColor.value,op);
+  document.getElementById('pf-bgopacity-val').textContent=op+'%';
+  var ib=d.querySelector('.ib');if(ib){ib.style.borderColor=d.dataset.c;ib.style.background=d.dataset.bg;}
+  var rm=d.querySelector('.rm');if(rm){rm.style.borderColor=d.dataset.c;rm.style.background=d.dataset.bg;}
+  if(il)il.style.color=d.dataset.c;if(rl)rl.style.color=d.dataset.c;
+  var idEl=d.querySelector('.id');if(idEl)idEl.textContent=Math.round(parseFloat(d.style.width)/S/10)+'\u00d7'+Math.round(parseFloat(d.style.height)/S/10)+'cm';
+  var ra=d.querySelector('.ra');if(ra){var wm=parseFloat(d.style.width)/S/1000,hm=parseFloat(d.style.height)/S/1000;ra.textContent=Math.round(wm*hm*10)/10+'m\u00b2';}
+}
+
+function applyStatusVisual(d){
+  if(d.dataset.type!=='huurunit')return;
+  var st=d.dataset.status,ib=d.querySelector('.ib');if(!ib)return;
+  if(st==='beschikbaar'){ib.style.borderColor='#4CAF50';ib.style.background='rgba(76,175,80,0.12)';ib.style.boxShadow='0 0 6px rgba(76,175,80,0.3)';}
+  else if(st==='bezet'){ib.style.borderColor='#666';ib.style.background='rgba(120,120,120,0.08)';ib.style.boxShadow='none';}
+  else if(st==='gereserveerd'){ib.style.borderColor='#FF9800';ib.style.background='rgba(255,152,0,0.12)';ib.style.boxShadow='0 0 6px rgba(255,152,0,0.2)';}
+  else{ib.style.borderColor=d.dataset.c;ib.style.background=d.dataset.bg;ib.style.boxShadow='none';}
+  var stb=d.querySelector('.stb');if(stb){stb.dataset.st=st||'';stb.textContent=st||'status';}
+}
+
+[pfName,pfType,pfFloor,pfW,pfH,pfX,pfY,pfRot,pfColor,pfBgColor,pfBgOpacity].forEach(function(el){el.addEventListener('input',applyProp);el.addEventListener('change',applyProp);});
+pfStatus.addEventListener('change',function(){applyProp();if(sel)applyStatusVisual(sel);});
+pfStatus.addEventListener('input',function(){applyProp();if(sel)applyStatusVisual(sel);});
+
+document.getElementById('pf-del').addEventListener('click',function(){if(sel){sel.remove();sel=null;hideProps();}});
+document.getElementById('pf-dup').addEventListener('click',function(){
+  if(!sel)return;var d=sel;
+  place(parseInt(d.style.left)+16,parseInt(d.style.top)+16,{w:parseInt(d.style.width),h:parseInt(d.style.height),l:d.dataset.l,c:d.dataset.c,bg:d.dataset.bg,type:d.dataset.type,room:d.dataset.room||'',status:d.dataset.status||''});
+});
+
+// KEYBOARD
+document.addEventListener('keydown',function(e){if(e.target.matches('input,select,textarea'))return;if((e.key==='Delete'||e.key==='Backspace')&&sel){sel.remove();sel=null;hideProps();}});
+
+// CUSTOM ITEM
+document.getElementById('addBtn').addEventListener('click',function(){
+  var n=document.getElementById('addN').value.trim(),b=parseInt(document.getElementById('addB').value),dd=parseInt(document.getElementById('addD').value);
+  if(!n||!b||!dd)return;
+  var col=document.getElementById('addC').value||'#c0a070';
+  var r=parseInt(col.substr(1,2),16),g=parseInt(col.substr(3,2),16),bl=parseInt(col.substr(5,2),16);
+  var bg='rgba('+r+','+g+','+bl+',.13)';
+  var wpx=Math.max(3,Math.round(b*10*S)),hpx=Math.max(3,Math.round(dd*10*S));
+  var el=document.createElement('div');el.className='item';el.draggable=true;
+  el.dataset.w=wpx;el.dataset.h=hpx;el.dataset.l=n;el.dataset.c=col;el.dataset.bg=bg;el.dataset.type='';
+  var sw=document.createElement('div');sw.className='sw';sw.style.background=col;
+  el.appendChild(sw);el.appendChild(document.createTextNode(n));
+  document.querySelector('.sb-s').appendChild(el);setupItem(el);
+  document.getElementById('addN').value='';document.getElementById('addB').value='';document.getElementById('addD').value='';
+});
+
+// SAVE / LOAD / EXPORT
+function serializeObjects(){
+  var objs=[];
+  fp.querySelectorAll('.pl').forEach(function(d){
+    objs.push({floor:+d.dataset.floor,x:parseInt(d.style.left),y:parseInt(d.style.top),w:parseInt(d.style.width),h:parseInt(d.style.height),l:d.dataset.l,c:d.dataset.c,bg:d.dataset.bg,type:d.dataset.type,rot:d.dataset.rot||'0',status:d.dataset.status||'',room:d.dataset.room||''});
+  });
+  return objs;
+}
+
+function loadObjects(objs){
+  fp.querySelectorAll('.pl').forEach(function(d){d.remove()});
+  sel=null;hideProps();
+  objs.forEach(function(o){
+    var savedFloor=floor;floor=o.floor;
+    place(o.x,o.y,{w:o.w,h:o.h,l:o.l,c:o.c,bg:o.bg,type:o.type||'',status:o.status||'',room:o.room||''});
+    if(o.rot&&o.rot!=='0'){var d=fp.lastElementChild;if(d&&d.classList.contains('pl')){d.dataset.rot=o.rot.toString();if((o.type==='overhead'||o.type==='door')&&d.lastElementChild)d.lastElementChild.style.transform='rotate('+o.rot+'deg)';}}
+    floor=savedFloor;
+  });
+  if(sel){sel.classList.remove('sel');sel=null;hideProps();}
+  draw();
+}
+
+var DEFAULT_OBJECTS={"v":3,"floor":0,"zoom":1,"items":[{"floor":0,"x":28,"y":18,"w":36,"h":56,"l":"K","c":"rgba(140,200,140,.5)","bg":"rgba(140,200,140,.13)","type":"","room":"1","rot":0},{"floor":0,"x":68,"y":18,"w":78,"h":56,"l":"Kantoor","c":"rgba(110,150,220,.5)","bg":"rgba(110,150,220,.13)","type":"","room":"1","rot":0},{"floor":0,"x":150,"y":18,"w":48,"h":56,"l":"Kantoor","c":"rgba(110,150,220,.5)","bg":"rgba(110,150,220,.13)","type":"","room":"1","rot":0},{"floor":0,"x":202,"y":12,"w":42,"h":68,"l":"K","c":"rgba(140,200,140,.5)","bg":"rgba(140,200,140,.13)","type":"","room":"1","rot":0},{"floor":0,"x":248,"y":18,"w":50,"h":56,"l":"Kantoor","c":"rgba(110,150,220,.5)","bg":"rgba(110,150,220,.13)","type":"","room":"1","rot":0},{"floor":0,"x":302,"y":12,"w":48,"h":68,"l":"Trap","c":"rgba(180,140,80,.45)","bg":"rgba(180,140,80,.13)","type":"","room":"1","rot":0},{"floor":0,"x":354,"y":18,"w":200,"h":56,"l":"Kantoor","c":"rgba(110,150,220,.5)","bg":"rgba(110,150,220,.13)","type":"","room":"1","rot":0},{"floor":0,"x":28,"y":80,"w":528,"h":310,"l":"Magazijn","c":"rgba(224,154,47,.5)","bg":"rgba(224,154,47,.13)","type":"","room":"1","rot":0},{"floor":0,"x":562,"y":290,"w":66,"h":100,"l":"Toilet","c":"rgba(120,160,220,.5)","bg":"rgba(120,160,220,.18)","type":"","room":"1","rot":0},{"floor":0,"x":632,"y":290,"w":88,"h":100,"l":"Entree","c":"rgba(100,180,220,.5)","bg":"rgba(100,180,220,.13)","type":"","room":"1","rot":0},{"floor":1,"x":28,"y":18,"w":528,"h":62,"l":"Magazijn (entresol)","c":"rgba(180,100,220,.5)","bg":"rgba(180,100,220,.13)","type":"","room":"1","rot":0},{"floor":1,"x":28,"y":84,"w":250,"h":308,"l":"Vide","c":"rgba(255,255,255,.12)","bg":"rgba(255,255,255,.03)","type":"","room":"1","rot":0},{"floor":1,"x":282,"y":84,"w":274,"h":230,"l":"Magazijn","c":"rgba(180,100,220,.5)","bg":"rgba(180,100,220,.13)","type":"","room":"1","rot":0},{"floor":1,"x":345,"y":28,"w":48,"h":40,"l":"Trap","c":"rgba(180,140,80,.45)","bg":"rgba(180,140,80,.13)","type":"","room":"1","rot":0},{"floor":1,"x":478,"y":320,"w":78,"h":72,"l":"Overloop","c":"rgba(200,180,140,.5)","bg":"rgba(200,180,140,.13)","type":"","room":"1","rot":0},{"floor":1,"x":562,"y":290,"w":158,"h":102,"l":"Vide","c":"rgba(255,255,255,.12)","bg":"rgba(255,255,255,.03)","type":"","room":"1","rot":0},{"floor":2,"x":28,"y":18,"w":440,"h":374,"l":"Vide","c":"rgba(255,255,255,.12)","bg":"rgba(255,255,255,.03)","type":"","room":"1","rot":0},{"floor":2,"x":395,"y":22,"w":48,"h":40,"l":"Overloop","c":"rgba(200,180,140,.5)","bg":"rgba(200,180,140,.13)","type":"","room":"1","rot":0},{"floor":2,"x":345,"y":28,"w":46,"h":38,"l":"Trap","c":"rgba(180,140,80,.45)","bg":"rgba(180,140,80,.13)","type":"","room":"1","rot":0},{"floor":2,"x":472,"y":18,"w":86,"h":50,"l":"Kantoor","c":"rgba(110,150,220,.5)","bg":"rgba(110,150,220,.13)","type":"","room":"1","rot":0},{"floor":2,"x":472,"y":72,"w":86,"h":180,"l":"Kantoor","c":"rgba(110,150,220,.5)","bg":"rgba(110,150,220,.13)","type":"","room":"1","rot":0},{"floor":2,"x":472,"y":256,"w":58,"h":56,"l":"Berging","c":"rgba(160,140,120,.5)","bg":"rgba(160,140,120,.13)","type":"","room":"1","rot":0},{"floor":2,"x":534,"y":256,"w":24,"h":56,"l":"Keuken","c":"rgba(140,200,140,.5)","bg":"rgba(140,200,140,.13)","type":"","room":"1","rot":0},{"floor":2,"x":472,"y":316,"w":86,"h":76,"l":"Vide","c":"rgba(255,255,255,.12)","bg":"rgba(255,255,255,.03)","type":"","room":"1","rot":0},{"floor":2,"x":562,"y":290,"w":158,"h":102,"l":"Vide","c":"rgba(255,255,255,.12)","bg":"rgba(255,255,255,.03)","type":"","room":"1","rot":0}]};
+
+function generateJS(objs){
+  return '// Werkplaats17 -- Geplaatste objecten\n// Laatst gewijzigd: '+new Date().toISOString()+'\n// Gegenereerd via admin.html\n\nconst PLACED_OBJECTS = '+JSON.stringify(objs,null,2)+';\n';
+}
+
+
+// ╔════════════════════════════════════════════╗
+// ║  VIEW SWITCHING                            ║
+// ╚════════════════════════════════════════════╝
+window.switchView=function(view){
+  document.querySelectorAll('.view-tab').forEach(t=>t.classList.toggle('on',t.dataset.view===view));
+  document.getElementById('view-plattegrond').style.display=view==='plattegrond'?'flex':'none';
+  document.getElementById('view-plattegrond').classList.toggle('active',view==='plattegrond');
+  document.getElementById('view-content').style.display=view==='content'?'block':'none';
+  document.getElementById('view-content').classList.toggle('active',view==='content');
+  document.getElementById('view-photos').style.display=view==='photos'?'block':'none';
+  document.getElementById('view-photos').classList.toggle('active',view==='photos');
+  // Toggle plattegrond-specifieke header items
+  document.getElementById('fp-hint').style.display=view==='plattegrond'?'':'none';
+  document.getElementById('fp-btns').style.display=view==='plattegrond'?'':'none';
+  // Lazy init
+  if(view==='content'&&!ceInitialized)ceInit();
+  if(view==='photos'&&!pmInitialized)pmInit();
+};
+
+// ╔════════════════════════════════════════════╗
+// ║  CONTENT EDITOR                            ║
+// ╚════════════════════════════════════════════╝
+var ceInitialized=false;
+var ceData={};
+
+// Schema voor de content editor
+var CE_SCHEMA=[
+  {id:'meta',title:'Meta & SEO',fields:[
+    {key:'siteTitle',label:'Site titel',type:'text'},
+    {key:'metaDescription',label:'Meta description',type:'textarea'},
+    {key:'ogDescription',label:'OG description',type:'textarea'},
+  ]},
+  {id:'header',title:'Header',fields:[
+    {key:'eyebrow',label:'Eyebrow tekst',type:'text'},
+    {key:'tagline',label:'Tagline',type:'html'},
+  ]},
+  {id:'locatie',title:'Locatie & Intro',fields:[
+    {key:'locationText',label:'Locatie tekst',type:'text'},
+    {key:'introText',label:'Intro tekst',type:'html'},
+    {key:'accessItems',label:'Kenmerken',type:'array-text'},
+  ]},
+  {id:'aanbod',title:'Aanbod',fields:[
+    {key:'offers',label:'Aanbod kaarten',type:'array-obj',objFields:['title','text']},
+  ]},
+  {id:'machines',title:'Machines',fields:[
+    {key:'machines',label:'Machines',type:'array-machine'},
+  ]},
+  {id:'tarieven',title:'Tarieven',fields:[
+    {key:'pricing',label:'Tarieven',type:'array-pricing'},
+    {key:'pricingNote',label:'Tarieven noot',type:'textarea'},
+  ]},
+  {id:'doelgroep',title:'Doelgroep',fields:[
+    {key:'targetAudience',label:'Doelgroep items',type:'array-text'},
+    {key:'notForText',label:'Niet voor',type:'html'},
+  ]},
+  {id:'contact',title:'Contact',fields:[
+    {key:'ctaHeading',label:'CTA heading',type:'html'},
+    {key:'email',label:'E-mailadres',type:'text'},
+    {key:'whatsappNumber',label:'WhatsApp nummer',type:'text'},
+    {key:'whatsappText',label:'WhatsApp vooraf-tekst',type:'text'},
+    {key:'contactLines',label:'Contact regels',type:'array-text'},
+  ]},
+  {id:'social',title:'Instagram & Footer',fields:[
+    {key:'instagramHandle',label:'Instagram handle',type:'text'},
+    {key:'instagramUrl',label:'Instagram URL',type:'text'},
+    {key:'photoLabels',label:'Fotostrip labels',type:'array-text'},
+    {key:'hashtags',label:'Hashtags',type:'html'},
+    {key:'copyright',label:'Copyright',type:'text'},
+  ]},
+];
+
+function ceInit(){
+  ceInitialized=true;
+  // Deep clone content.js data — haal het op van GitHub of gebruik lokale cache
+  ceLoadFromGitHub();
+}
+
+// Decode base64 van GitHub (bevat newlines die atob niet accepteert)
+function ghDecode(b64){return decodeURIComponent(escape(atob(b64.replace(/\s/g,''))));}
+
+async function ceLoadFromGitHub(){
+  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
+  var token=localStorage.getItem('w17-gh-token');
+  document.getElementById('ce-status').textContent='Content laden...';
+  try{
+    if(token){
+      var r=await fetch('https://api.github.com/repos/'+repo+'/contents/content.js',{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github.v3+json'}});
+      if(r.ok){
+        var data=await r.json();
+        var raw=ghDecode(data.content);
+        var cm=raw.match(/(?:const|var|let)\s+CONTENT\s*=\s*/);if(cm){var js=raw.substring(cm.index+cm[0].length).replace(/;\s*$/,'').trim();ceData=JSON.parse(js);}
+        ceBuild();
+        document.getElementById('ce-status').textContent='Content geladen van GitHub';
+        return;
+      }
+    }
+  }catch(e){console.warn('GitHub content laden mislukt:',e);}
+  // Fallback: lokaal geladen content.js
+  if(typeof CONTENT!=='undefined'){ceData=JSON.parse(JSON.stringify(CONTENT));ceBuild();document.getElementById('ce-status').textContent='Content geladen (lokaal)';}
+  else{document.getElementById('ce-status').textContent='Kon content niet laden';toast('Content laden mislukt','err');}
+}
+
+function ceBuild(){
+  var form=document.getElementById('ce-form');
+  while(form.firstChild)form.removeChild(form.firstChild);
+  CE_SCHEMA.forEach(function(section){
+    var sec=document.createElement('div');sec.className='ce-section';sec.id='ce-s-'+section.id;
+    var hdr=document.createElement('div');hdr.className='ce-section-hdr';
+    var _h3=document.createElement('h3');_h3.textContent=section.title;hdr.appendChild(_h3);var _ar=document.createElement('span');_ar.className='ce-arrow';_ar.textContent='\u25BC';hdr.appendChild(_ar);
+    hdr.onclick=function(){sec.classList.toggle('open');};
+    sec.appendChild(hdr);
+    var body=document.createElement('div');body.className='ce-section-body';
+    section.fields.forEach(function(f){
+      body.appendChild(ceRenderField(f));
+    });
+    sec.appendChild(body);
+    form.appendChild(sec);
+  });
+}
+
+function ceWrapSelection(ta,tag){
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  var txt=ta.value,sel=txt.substring(s,e);
+  var open='<'+tag+'>',close='</'+tag+'>';
+  // Toggle: als selectie al gewrapt is, verwijder tags
+  if(txt.substring(s-open.length,s)===open&&txt.substring(e,e+close.length)===close){
+    ta.value=txt.substring(0,s-open.length)+sel+txt.substring(e+close.length);
+    ta.selectionStart=s-open.length;ta.selectionEnd=e-open.length;
+  }else{
+    ta.value=txt.substring(0,s)+open+sel+close+txt.substring(e);
+    ta.selectionStart=s+open.length;ta.selectionEnd=e+open.length;
+  }
+  ta.focus();
+}
+
+function ceRenderField(f){
+  var wrap=document.createElement('div');wrap.className='ce-field';
+  var val=ceData[f.key];
+  if(f.type==='text'){
+    var _lb=document.createElement('div');_lb.className='ce-label';_lb.textContent=f.label;wrap.appendChild(_lb);
+    var inp=document.createElement('input');inp.className='ce-input';inp.type='text';inp.value=val||'';inp.dataset.key=f.key;
+    inp.oninput=function(){ceData[f.key]=this.value;};
+    wrap.appendChild(inp);
+  }else if(f.type==='textarea'){
+    var _lb=document.createElement('div');_lb.className='ce-label';_lb.textContent=f.label;wrap.appendChild(_lb);
+    var ta=document.createElement('textarea');ta.className='ce-input';ta.dataset.key=f.key;
+    ta.value=(val||'').replace(/<br\s*\/?>/gi,'\n');
+    ta.oninput=function(){ceData[f.key]=this.value.replace(/\n/g,'<br>');};
+    wrap.appendChild(ta);
+  }else if(f.type==='html'){
+    var lbl=document.createElement('div');lbl.className='ce-label';
+    lbl.textContent=f.label+' ';var _tg=document.createElement('span');_tg.className='ce-tag';_tg.textContent='HTML';lbl.appendChild(_tg);
+    var toggle=document.createElement('span');toggle.className='ce-preview-toggle';toggle.textContent='Preview';
+    lbl.appendChild(toggle);
+    wrap.appendChild(lbl);
+    // Toolbar
+    var tb=document.createElement('div');tb.className='ce-toolbar';
+    var ta=document.createElement('textarea');ta.className='ce-input';ta.dataset.key=f.key;
+    var prev=document.createElement('div');prev.className='ce-preview';prev.innerHTML=val||'';
+    function syncTa(){ceData[f.key]=ta.value.replace(/\n/g,'<br>');prev.innerHTML=ceData[f.key];}
+    [['B','strong'],['I','em']].forEach(function(pair){
+      var btn=document.createElement('button');btn.className='ce-tb-btn';btn.type='button';btn.textContent=pair[0];if(pair[1]==='strong')btn.style.fontWeight='bold';if(pair[1]==='em')btn.style.fontStyle='italic';
+      btn.onclick=function(){ceWrapSelection(ta,pair[1]);syncTa();};
+      tb.appendChild(btn);
+    });
+    wrap.appendChild(tb);
+    // <br> → newline voor textarea, newline → <br> bij opslaan
+    ta.value=(val||'').replace(/<br\s*\/?>/gi,'\n');
+    ta.oninput=syncTa;
+    wrap.appendChild(ta);
+    toggle.onclick=function(){prev.classList.toggle('show');this.textContent=prev.classList.contains('show')?'Verberg':'Preview';};
+    wrap.appendChild(prev);
+  }else if(f.type==='array-text'){
+    var _lb=document.createElement('div');_lb.className='ce-label';_lb.textContent=f.label;wrap.appendChild(_lb);
+    var list=document.createElement('div');list.dataset.key=f.key;
+    function renderArrayText(){
+      while(list.firstChild)list.removeChild(list.firstChild);
+      (ceData[f.key]||[]).forEach(function(item,i){
+        var row=document.createElement('div');row.className='ce-array-item';
+        var inp=document.createElement('input');inp.className='ce-input';inp.type='text';inp.value=item;
+        inp.oninput=function(){ceData[f.key][i]=this.value;};
+        row.appendChild(inp);
+        var rm=document.createElement('button');rm.className='ce-array-rm';rm.textContent='✕';
+        rm.onclick=function(){ceData[f.key].splice(i,1);renderArrayText();};
+        row.appendChild(rm);
+        list.appendChild(row);
+      });
+    }
+    renderArrayText();
+    wrap.appendChild(list);
+    var addBtn=document.createElement('button');addBtn.className='ce-array-add';addBtn.textContent='+ Toevoegen';
+    addBtn.onclick=function(){if(!ceData[f.key])ceData[f.key]=[];ceData[f.key].push('');renderArrayText();};
+    wrap.appendChild(addBtn);
+  }else if(f.type==='array-obj'){
+    var _lb=document.createElement('div');_lb.className='ce-label';_lb.textContent=f.label;wrap.appendChild(_lb);
+    var list=document.createElement('div');list.dataset.key=f.key;
+    function renderArrayObj(){
+      while(list.firstChild)list.removeChild(list.firstChild);
+      (ceData[f.key]||[]).forEach(function(item,i){
+        var row=document.createElement('div');row.className='ce-array-item';row.style.flexDirection='column';
+        f.objFields.forEach(function(ofk){
+          var inp=document.createElement('input');inp.className='ce-input';inp.type='text';inp.value=item[ofk]||'';
+          inp.placeholder=ofk;inp.style.marginBottom='4px';
+          inp.oninput=function(){ceData[f.key][i][ofk]=this.value;};
+          row.appendChild(inp);
+        });
+        var rm=document.createElement('button');rm.className='ce-array-rm';rm.textContent='✕';rm.style.alignSelf='flex-end';
+        rm.onclick=function(){ceData[f.key].splice(i,1);renderArrayObj();};
+        row.appendChild(rm);
+        list.appendChild(row);
+      });
+    }
+    renderArrayObj();
+    wrap.appendChild(list);
+    var addBtn=document.createElement('button');addBtn.className='ce-array-add';addBtn.textContent='+ Toevoegen';
+    addBtn.onclick=function(){if(!ceData[f.key])ceData[f.key]=[];var obj={};f.objFields.forEach(function(k){obj[k]='';});ceData[f.key].push(obj);renderArrayObj();};
+    wrap.appendChild(addBtn);
+  }else if(f.type==='array-machine'){
+    var _lb=document.createElement('div');_lb.className='ce-label';_lb.textContent=f.label;wrap.appendChild(_lb);
+    var list=document.createElement('div');list.dataset.key=f.key;
+    function renderMachines(){
+      while(list.firstChild)list.removeChild(list.firstChild);
+      (ceData[f.key]||[]).forEach(function(item,i){
+        var row=document.createElement('div');row.className='ce-array-item';
+        var inp=document.createElement('input');inp.className='ce-input';inp.type='text';inp.value=item.name||'';inp.style.flex='1';
+        inp.oninput=function(){ceData[f.key][i].name=this.value;};
+        row.appendChild(inp);
+        var chk=document.createElement('div');chk.className='ce-check';
+        var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!item.highlight;
+        cb.onchange=function(){ceData[f.key][i].highlight=this.checked;};
+        var cbl=document.createElement('span');cbl.textContent='Highlight';cbl.style.cssText='font-size:8px;color:var(--muted)';
+        chk.appendChild(cb);chk.appendChild(cbl);
+        row.appendChild(chk);
+        var rm=document.createElement('button');rm.className='ce-array-rm';rm.textContent='✕';
+        rm.onclick=function(){ceData[f.key].splice(i,1);renderMachines();};
+        row.appendChild(rm);
+        list.appendChild(row);
+      });
+    }
+    renderMachines();
+    wrap.appendChild(list);
+    var addBtn=document.createElement('button');addBtn.className='ce-array-add';addBtn.textContent='+ Toevoegen';
+    addBtn.onclick=function(){if(!ceData[f.key])ceData[f.key]=[];ceData[f.key].push({name:'',highlight:false});renderMachines();};
+    wrap.appendChild(addBtn);
+  }else if(f.type==='array-pricing'){
+    var _lb=document.createElement('div');_lb.className='ce-label';_lb.textContent=f.label;wrap.appendChild(_lb);
+    var list=document.createElement('div');list.dataset.key=f.key;
+    function renderPricing(){
+      while(list.firstChild)list.removeChild(list.firstChild);
+      (ceData[f.key]||[]).forEach(function(item,i){
+        var row=document.createElement('div');row.className='ce-array-item';row.style.flexDirection='column';
+        ['label','sub','price','unit'].forEach(function(pk){
+          var inp=document.createElement('input');inp.className='ce-input';inp.type='text';inp.value=item[pk]||'';
+          inp.placeholder=pk;inp.style.marginBottom='4px';
+          inp.oninput=function(){ceData[f.key][i][pk]=this.value;};
+          row.appendChild(inp);
+        });
+        var rm=document.createElement('button');rm.className='ce-array-rm';rm.textContent='✕';rm.style.alignSelf='flex-end';
+        rm.onclick=function(){ceData[f.key].splice(i,1);renderPricing();};
+        row.appendChild(rm);
+        list.appendChild(row);
+      });
+    }
+    renderPricing();
+    wrap.appendChild(list);
+    var addBtn=document.createElement('button');addBtn.className='ce-array-add';addBtn.textContent='+ Toevoegen';
+    addBtn.onclick=function(){if(!ceData[f.key])ceData[f.key]=[];ceData[f.key].push({label:'',sub:'',price:'',unit:''});renderPricing();};
+    wrap.appendChild(addBtn);
+  }
+  return wrap;
+}
+
+function ceGenerateJS(){
+  var lines=['// ╔══════════════════════════════════════════════════════════════╗'];
+  lines.push('// ║  WERKPLAATS17 — CONTENT CONFIGURATIE                       ║');
+  lines.push('// ║  Pas hier alle teksten, prijzen en contactgegevens aan.    ║');
+  lines.push('// ║  Na aanpassing: opslaan → site herlaadt automatisch.       ║');
+  lines.push('// ╚══════════════════════════════════════════════════════════════╝');
+  lines.push('');
+  lines.push('const CONTENT = '+JSON.stringify(ceData,null,2)+';');
+  return lines.join('\n')+'\n';
+}
+
+window.ceSave=async function(){
+  var btn=document.getElementById('ce-save');
+  var js=ceGenerateJS();
+  var ok=await publishFile('content.js',js,'Content bijgewerkt via admin ('+new Date().toLocaleString('nl-NL')+')',btn);
+  if(ok)document.getElementById('ce-status').textContent='Gepubliceerd om '+new Date().toLocaleTimeString('nl-NL');
+};
+
+window.ceReset=function(){
+  if(!confirm('Alle wijzigingen ongedaan maken?'))return;
+  ceLoadFromGitHub();
+};
+
+// ╔════════════════════════════════════════════╗
+// ║  FOTO MANAGER                              ║
+// ╚════════════════════════════════════════════╝
+var pmInitialized=false;
+var pmPhotos={hero:null,strip:[null,null,null]};
+var pmPendingUploads={};
+
+function pmInit(){
+  pmInitialized=true;
+  pmLoadFromGitHub();
+  // Drag & drop op slots
+  document.querySelectorAll('.pm-slot').forEach(function(slot){
+    slot.addEventListener('dragover',function(e){e.preventDefault();slot.style.borderColor='var(--amber)';});
+    slot.addEventListener('dragleave',function(){slot.style.borderColor='';});
+    slot.addEventListener('drop',function(e){
+      e.preventDefault();slot.style.borderColor='';
+      var file=e.dataTransfer.files[0];
+      if(file&&file.type.startsWith('image/'))pmProcessFile(slot.dataset.slot,file);
+    });
+  });
+}
+
+async function pmLoadFromGitHub(){
+  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
+  var token=localStorage.getItem('w17-gh-token');
+  document.getElementById('pm-status').textContent='Foto\'s laden...';
+  try{
+    if(token){
+      var r=await fetch('https://api.github.com/repos/'+repo+'/contents/photos.js',{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github.v3+json'}});
+      if(r.ok){
+        var data=await r.json();
+        var raw=ghDecode(data.content);
+        var pm=raw.match(/(?:const|var|let)\s+PHOTOS\s*=\s*/);if(pm){var js=raw.substring(pm.index+pm[0].length).replace(/;\s*$/,'').trim();pmPhotos=JSON.parse(js);}
+        if(!pmPhotos.strip)pmPhotos.strip=[null,null,null];
+        pmRenderSlots();
+        document.getElementById('pm-status').textContent='Foto\'s geladen';
+        return;
+      }
+    }
+  }catch(e){console.warn('Photos laden mislukt:',e);}
+  pmRenderSlots();
+  document.getElementById('pm-status').textContent='Geen foto\'s gevonden';
+}
+
+function pmRenderSlots(){
+  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
+  // Hero
+  var heroSlot=document.querySelector('[data-slot="hero"]');
+  pmRenderSlot(heroSlot,pmPhotos.hero,'hero');
+  // Strip
+  for(var i=0;i<3;i++){
+    var slot=document.querySelector('[data-slot="strip-'+i+'"]');
+    pmRenderSlot(slot,pmPhotos.strip[i],'strip-'+i);
+  }
+}
+
+function pmRenderSlot(slot,photoPath,slotId){
+  if(!slot)return;
+  while(slot.firstChild)slot.removeChild(slot.firstChild);
+  var pending=pmPendingUploads[slotId];
+  function _ov(s,sid){var o=document.createElement('div');o.className='pm-overlay';var c=document.createElement('button');c.className='pm-overlay-btn change';c.textContent='Wijzig';c.onclick=function(e){e.stopPropagation();pmPick(sid);};var r=document.createElement('button');r.className='pm-overlay-btn remove';r.textContent='Verwijder';r.onclick=function(e){e.stopPropagation();pmRemove(sid);};o.appendChild(c);o.appendChild(r);s.appendChild(o);}
+  if(pending){slot.classList.add('has-photo');var img=document.createElement('img');img.src=pending.dataUrl;img.alt='preview';slot.appendChild(img);_ov(slot,slotId);}
+  else if(photoPath){var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';var url='https://raw.githubusercontent.com/'+repo+'/master/'+photoPath+'?t='+Date.now();slot.classList.add('has-photo');var img=document.createElement('img');img.src=url;img.alt='foto';slot.appendChild(img);_ov(slot,slotId);}
+  else{slot.classList.remove('has-photo');var ic=document.createElement('span');ic.className='pm-icon';ic.textContent='+';var lb=document.createElement('span');lb.className='pm-label';lb.textContent='Klik of sleep een foto';slot.appendChild(ic);slot.appendChild(lb);}
+}
+
+window.pmPick=function(slotId){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=function(){if(this.files[0])pmProcessFile(slotId,this.files[0]);};
+  inp.click();
+};
+
+window.pmRemove=function(slotId){
+  delete pmPendingUploads[slotId];
+  if(slotId==='hero')pmPhotos.hero=null;
+  else{var idx=parseInt(slotId.split('-')[1]);pmPhotos.strip[idx]=null;}
+  pmRenderSlots();
+};
+
+function pmProcessFile(slotId,file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var canvas=document.createElement('canvas');
+      var maxW=1600,w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*(maxW/w));w=maxW;}
+      canvas.width=w;canvas.height=h;
+      var ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      var dataUrl=canvas.toDataURL('image/jpeg',0.82);
+      var b64=dataUrl.split(',')[1];
+      pmPendingUploads[slotId]={b64:b64,dataUrl:dataUrl,filename:slotId.replace('strip-','strip')+'.jpg'};
+      pmRenderSlots();
+      document.getElementById('pm-status').textContent='Foto klaar voor upload';
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+window.pmSave=async function(){
+  var btn=document.getElementById('pm-save');
+  var progress=document.getElementById('pm-progress');
+  btn.disabled=true;btn.textContent='Uploaden...';
+  var keys=Object.keys(pmPendingUploads);
+  var total=keys.length;
+  if(total===0){
+    // Alleen photos.js updaten (voor verwijderingen)
+    var js=pmGenerateJS();
+    await publishFile('photos.js',js,'Foto referenties bijgewerkt via admin',btn);
+    btn.disabled=false;
+    return;
+  }
+  var done=0;
+  for(var i=0;i<keys.length;i++){
+    var slotId=keys[i];
+    var up=pmPendingUploads[slotId];
+    var filepath='photos/'+up.filename;
+    progress.textContent='('+(done+1)+'/'+total+') '+up.filename+'...';
+    var ok=await publishBinary(filepath,up.b64,'Foto upload: '+up.filename+' via admin');
+    if(ok){
+      // Update photos reference
+      if(slotId==='hero')pmPhotos.hero=filepath;
+      else{var idx=parseInt(slotId.split('-')[1]);pmPhotos.strip[idx]=filepath;}
+      delete pmPendingUploads[slotId];
+      done++;
+    }else{
+      toast('Upload mislukt: '+up.filename,'err');
+    }
+  }
+  progress.textContent='';
+  // Save photos.js
+  var js=pmGenerateJS();
+  var ok=await publishFile('photos.js',js,'Foto referenties bijgewerkt via admin',btn);
+  if(ok){
+    document.getElementById('pm-status').textContent=done+' foto\'s geüpload om '+new Date().toLocaleTimeString('nl-NL');
+    pmRenderSlots();
+  }
+  btn.disabled=false;
+};
+
+function pmGenerateJS(){
+  return '// Werkplaats17 — Foto referenties\n// Laatst gewijzigd: '+new Date().toISOString()+'\n// Gegenereerd via admin.html\n\nconst PHOTOS = '+JSON.stringify(pmPhotos,null,2)+';\n';
+}
+
+// ╔════════════════════════════════════════════╗
+// ║  TOAST                                     ║
+// ╚════════════════════════════════════════════╝
+function toast(msg,type){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show '+(type||'ok');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(function(){t.classList.remove('show');},3000);
+}
+
+// ╔════════════════════════════════════════════╗
+// ║  GITHUB PUBLISH                            ║
+// ╚════════════════════════════════════════════╝
+async function getGHConfig(){
+  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
+  var token=localStorage.getItem('w17-gh-token');
+  if(!token){document.getElementById('token-modal').classList.add('show');return null;}
+  return{repo:repo,token:token};
+}
+
+async function publishFile(path,content,message,btn){
+  var gh=await getGHConfig();if(!gh)return false;
+  if(btn){btn.disabled=true;btn.textContent='Publiceren...';}
+  try{
+    // Get current SHA
+    var r=await fetch('https://api.github.com/repos/'+gh.repo+'/contents/'+path,{
+      headers:{'Authorization':'Bearer '+gh.token,'Accept':'application/vnd.github.v3+json'}
+    });
+    var sha=null;
+    if(r.ok){var d=await r.json();sha=d.sha;}
+    // Put file
+    var body={message:message||'Update '+path,content:btoa(unescape(encodeURIComponent(content)))};
+    if(sha)body.sha=sha;
+    var r2=await fetch('https://api.github.com/repos/'+gh.repo+'/contents/'+path,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+gh.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    if(!r2.ok){var err=await r2.json();throw new Error(err.message||'HTTP '+r2.status);}
+    toast('Gepubliceerd: '+path);
+    return true;
+  }catch(e){
+    console.error('Publish error:',e);
+    toast('Publiceren mislukt: '+e.message,'err');
+    return false;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Opslaan & Publiceer';}
+  }
+}
+
+async function publishBinary(path,b64Data,message){
+  var gh=await getGHConfig();if(!gh)return false;
+  try{
+    var r=await fetch('https://api.github.com/repos/'+gh.repo+'/contents/'+path,{
+      headers:{'Authorization':'Bearer '+gh.token,'Accept':'application/vnd.github.v3+json'}
+    });
+    var sha=null;
+    if(r.ok){var d=await r.json();sha=d.sha;}
+    var body={message:message||'Upload '+path,content:b64Data};
+    if(sha)body.sha=sha;
+    var r2=await fetch('https://api.github.com/repos/'+gh.repo+'/contents/'+path,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+gh.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    if(!r2.ok){var err=await r2.json();throw new Error(err.message||'HTTP '+r2.status);}
+    return true;
+  }catch(e){
+    console.error('Binary upload error:',e);
+    return false;
+  }
+}
+
+// ╔════════════════════════════════════════════╗
+// ║  SAVE / EXPORT BUTTONS (Plattegrond)       ║
+// ╚════════════════════════════════════════════╝
+document.getElementById('btn-save').addEventListener('click',async function(){
+  var btn=this;
+  var objs=serializeObjects();
+  localStorage.setItem('w17-objects',JSON.stringify(objs));
+  var js=generateJS(objs);
+  await publishFile('placed-objects.js',js,'Plattegrond bijgewerkt via admin ('+new Date().toLocaleString('nl-NL')+')',btn);
+});
+
+document.getElementById('btn-export').addEventListener('click',function(){
+  var objs=serializeObjects();
+  var js=generateJS(objs);
+  var blob=new Blob([js],{type:'application/javascript'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='placed-objects.js';a.click();
+  toast('Export gedownload');
+});
+
+// ╔════════════════════════════════════════════╗
+// ║  TOKEN MODAL                               ║
+// ╚════════════════════════════════════════════╝
+document.getElementById('token-save').addEventListener('click',function(){
+  var repo=document.getElementById('gh-repo').value.trim();
+  var token=document.getElementById('gh-token').value.trim();
+  if(!repo||!token){document.getElementById('pub-status').textContent='Vul beide velden in';document.getElementById('pub-status').className='pub-status err';return;}
+  localStorage.setItem('w17-gh-repo',repo);
+  localStorage.setItem('w17-gh-token',token);
+  document.getElementById('token-modal').classList.remove('show');
+  toast('GitHub token opgeslagen');
+});
+
+// ╔════════════════════════════════════════════╗
+// ║  INIT                                      ║
+// ╚════════════════════════════════════════════╝
+function init(){
+  draw();applyTransform();
+  // Load saved objects
+  var saved=localStorage.getItem('w17-objects');
+  if(saved){try{loadObjects(JSON.parse(saved));toast('Hersteld vanuit opslag');}catch(e){loadObjects(DEFAULT_OBJECTS.items);}}
+  else{loadObjects(DEFAULT_OBJECTS.items);}
+  // Auto-save every 30s
+  setInterval(function(){localStorage.setItem('w17-objects',JSON.stringify(serializeObjects()));},30000);
+}
+</script>
+</body>
+</html>
