@@ -537,11 +537,11 @@ textarea.ce-input{min-height:60px;resize:vertical}
 const PASS_HASH='0e122c4826c8a99766c3bdbeb89ba9e7446f9ff73b61996e5deed73c48fce803';
 async function sha256(m){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 const authGate=document.getElementById('auth-gate');
-if(sessionStorage.getItem('w17auth')==='ok'){authGate.style.display='none';document.getElementById('editor').style.display='flex';setTimeout(init,0);}
+if(sessionStorage.getItem('w17r-auth')==='ok'){authGate.style.display='none';document.getElementById('editor').style.display='flex';setTimeout(init,0);}
 document.getElementById('auth-pw').addEventListener('keydown',async e=>{
   if(e.key!=='Enter')return;
   if(await sha256(e.target.value)===PASS_HASH){
-    sessionStorage.setItem('w17auth','ok');authGate.style.display='none';document.getElementById('editor').style.display='flex';init();
+    sessionStorage.setItem('w17r-auth','ok');authGate.style.display='none';document.getElementById('editor').style.display='flex';init();
   }else{document.getElementById('auth-err').classList.add('show');e.target.value='';setTimeout(()=>document.getElementById('auth-err').classList.remove('show'),2000);}
 });
 
@@ -1082,8 +1082,8 @@ function ceInit(){
 function ghDecode(b64){return decodeURIComponent(escape(atob(b64.replace(/\s/g,''))));}
 
 async function ceLoadFromGitHub(){
-  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17';
-  var token=localStorage.getItem('w17-gh-token');
+  var repo=localStorage.getItem('w17r-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
+  var token=localStorage.getItem('w17r-gh-token');
   document.getElementById('ce-status').textContent='Content laden...';
   try{
     if(token){
@@ -1319,8 +1319,8 @@ function pmInit(){
 }
 
 async function pmLoadFromGitHub(){
-  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17';
-  var token=localStorage.getItem('w17-gh-token');
+  var repo=localStorage.getItem('w17r-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
+  var token=localStorage.getItem('w17r-gh-token');
   document.getElementById('pm-status').textContent='Foto\'s laden...';
   try{
     if(token){
@@ -1341,7 +1341,7 @@ async function pmLoadFromGitHub(){
 }
 
 function pmRenderSlots(){
-  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17';
+  var repo=localStorage.getItem('w17r-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
   // Hero
   var heroSlot=document.querySelector('[data-slot="hero"]');
   pmRenderSlot(heroSlot,pmPhotos.hero,'hero');
@@ -1358,7 +1358,7 @@ function pmRenderSlot(slot,photoPath,slotId){
   var pending=pmPendingUploads[slotId];
   function _ov(s,sid){var o=document.createElement('div');o.className='pm-overlay';var c=document.createElement('button');c.className='pm-overlay-btn change';c.textContent='Wijzig';c.onclick=function(e){e.stopPropagation();pmPick(sid);};var r=document.createElement('button');r.className='pm-overlay-btn remove';r.textContent='Verwijder';r.onclick=function(e){e.stopPropagation();pmRemove(sid);};o.appendChild(c);o.appendChild(r);s.appendChild(o);}
   if(pending){slot.classList.add('has-photo');var img=document.createElement('img');img.src=pending.dataUrl;img.alt='preview';slot.appendChild(img);_ov(slot,slotId);}
-  else if(photoPath){var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17';var url='https://raw.githubusercontent.com/'+repo+'/master/'+photoPath+'?t='+Date.now();slot.classList.add('has-photo');var img=document.createElement('img');img.src=url;img.alt='foto';slot.appendChild(img);_ov(slot,slotId);}
+  else if(photoPath){var repo=localStorage.getItem('w17r-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';var url='https://raw.githubusercontent.com/'+repo+'/master/'+photoPath+'?t='+Date.now();slot.classList.add('has-photo');var img=document.createElement('img');img.src=url;img.alt='foto';slot.appendChild(img);_ov(slot,slotId);}
   else{slot.classList.remove('has-photo');var ic=document.createElement('span');ic.className='pm-icon';ic.textContent='+';var lb=document.createElement('span');lb.className='pm-label';lb.textContent='Klik of sleep een foto';slot.appendChild(ic);slot.appendChild(lb);}
 }
 
@@ -1458,12 +1458,12 @@ function toast(msg,type){
 // Auto-inject token from URL hash: admin.html#token=xxx or #token=xxx&repo=user/repo
 (function(){
   var h=window.location.hash;if(!h)return;
-  var m=h.match(/token=([^&]+)/);if(m){localStorage.setItem('w17-gh-token',m[1]);var r=h.match(/repo=([^&]+)/);if(r)localStorage.setItem('w17-gh-repo',decodeURIComponent(r[1]));history.replaceState(null,'',window.location.pathname+window.location.search);toast('GitHub token bijgewerkt');}
+  var m=h.match(/token=([^&]+)/);if(m){localStorage.setItem('w17r-gh-token',m[1]);var r=h.match(/repo=([^&]+)/);if(r)localStorage.setItem('w17r-gh-repo',decodeURIComponent(r[1]));history.replaceState(null,'',window.location.pathname+window.location.search);toast('GitHub token bijgewerkt');}
 })();
 
 async function getGHConfig(){
-  var repo=localStorage.getItem('w17-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
-  var token=localStorage.getItem('w17-gh-token');
+  var repo=localStorage.getItem('w17r-gh-repo')||'midirectiekade14-debug/werkplaats17-rotterdam';
+  var token=localStorage.getItem('w17r-gh-token');
   if(!token){document.getElementById('token-modal').classList.add('show');return null;}
   return{repo:repo,token:token};
 }
@@ -1486,7 +1486,7 @@ async function publishFile(path,content,message,btn){
       headers:{'Authorization':'Bearer '+gh.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
       body:JSON.stringify(body)
     });
-    if(!r2.ok){var err=await r2.json();if(r2.status===401||r2.status===403){localStorage.removeItem('w17-gh-token');document.getElementById('token-modal').classList.add('show');throw new Error('Token verlopen — voer een nieuwe token in');}throw new Error(err.message||'HTTP '+r2.status);}
+    if(!r2.ok){var err=await r2.json();if(r2.status===401||r2.status===403){localStorage.removeItem('w17r-gh-token');document.getElementById('token-modal').classList.add('show');throw new Error('Token verlopen — voer een nieuwe token in');}throw new Error(err.message||'HTTP '+r2.status);}
     toast('Gepubliceerd: '+path);
     return true;
   }catch(e){
@@ -1527,7 +1527,7 @@ async function publishBinary(path,b64Data,message){
 document.getElementById('btn-save').addEventListener('click',async function(){
   var btn=this;
   var objs=serializeObjects();
-  localStorage.setItem('w17-objects',JSON.stringify(objs));
+  localStorage.setItem('w17r-objects',JSON.stringify(objs));
   var js=generateJS(objs);
   await publishFile('placed-objects.js',js,'Plattegrond bijgewerkt via admin ('+new Date().toLocaleString('nl-NL')+')',btn);
 });
@@ -1547,8 +1547,8 @@ document.getElementById('token-save').addEventListener('click',function(){
   var repo=document.getElementById('gh-repo').value.trim();
   var token=document.getElementById('gh-token').value.trim();
   if(!repo||!token){document.getElementById('pub-status').textContent='Vul beide velden in';document.getElementById('pub-status').className='pub-status err';return;}
-  localStorage.setItem('w17-gh-repo',repo);
-  localStorage.setItem('w17-gh-token',token);
+  localStorage.setItem('w17r-gh-repo',repo);
+  localStorage.setItem('w17r-gh-token',token);
   document.getElementById('token-modal').classList.remove('show');
   toast('GitHub token opgeslagen');
 });
@@ -1559,11 +1559,11 @@ document.getElementById('token-save').addEventListener('click',function(){
 function init(){
   draw();applyTransform();
   // Load saved objects
-  var saved=localStorage.getItem('w17-objects');
+  var saved=localStorage.getItem('w17r-objects');
   if(saved){try{loadObjects(JSON.parse(saved));toast('Hersteld vanuit opslag');}catch(e){loadObjects(DEFAULT_OBJECTS.items);}}
   else{loadObjects(DEFAULT_OBJECTS.items);}
   // Auto-save every 30s
-  setInterval(function(){localStorage.setItem('w17-objects',JSON.stringify(serializeObjects()));},30000);
+  setInterval(function(){localStorage.setItem('w17r-objects',JSON.stringify(serializeObjects()));},30000);
 }
 </script>
 </body>
