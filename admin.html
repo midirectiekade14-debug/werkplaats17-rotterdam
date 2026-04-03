@@ -289,11 +289,6 @@ textarea.ce-input{min-height:60px;resize:vertical}
 <div id="view-plattegrond" class="view-panel active" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
 <div class="wrap">
 <div class="sb">
-  <div style="padding:5px 5px 0;display:flex;gap:2px">
-    <div class="tab on" id="t0" onclick="show(0)" style="flex:1;text-align:center">BG</div>
-    <div class="tab" id="t1" onclick="show(1)" style="flex:1;text-align:center">1e</div>
-    <div class="tab" id="t2" onclick="show(2)" style="flex:1;text-align:center">2e</div>
-  </div>
   <div class="sb-h">Objecten</div>
   <div class="sb-s">
     <div class="cat">Zones</div>
@@ -402,14 +397,6 @@ textarea.ce-input{min-height:60px;resize:vertical}
         <option value="beschikbaar">Beschikbaar</option>
         <option value="bezet">Bezet</option>
         <option value="gereserveerd">Gereserveerd</option>
-      </select>
-    </div>
-    <div class="pf">
-      <div class="pf-label">Verdieping</div>
-      <select class="pf-select" id="pf-floor">
-        <option value="0">Begane grond</option>
-        <option value="1">1e verdieping</option>
-        <option value="2">2e verdieping</option>
       </select>
     </div>
     <div class="pf-divider"></div>
@@ -561,7 +548,7 @@ document.getElementById('auth-pw').addEventListener('keydown',async e=>{
 
 // PLATTEGROND ENGINE (Oud Camp style - simple canvas, free-form rooms)
 const S=0.03, SNAP=3, FPW=900, FPH=550;
-let floor=0, sel=null, drag=null;
+const floor=0; let sel=null, drag=null;
 const fp=document.getElementById('fp');
 const cv=document.getElementById('canvas');
 const bgImages={};
@@ -575,9 +562,6 @@ function draw(){
   fp.insertBefore(g,fp.firstChild);
   fp.querySelectorAll('.bgimg').forEach(function(img){img.style.display=(+img.dataset.floor===floor)?'':'none'});
 }
-
-// TABS (3 floors)
-window.show=function(f){floor=f;document.getElementById('t0').classList.toggle('on',f===0);document.getElementById('t1').classList.toggle('on',f===1);document.getElementById('t2').classList.toggle('on',f===2);draw()};
 
 // ZOOM & PAN
 var zoom=1,panX=0,panY=0;
@@ -856,7 +840,7 @@ cv.addEventListener('mousedown',function(e){
 // PROPERTIES PANEL
 var propsForm=document.getElementById('props-form'),propsEmpty=document.getElementById('props-empty');
 var pfName=document.getElementById('pf-name'),pfType=document.getElementById('pf-type'),pfStatus=document.getElementById('pf-status');
-var pfFloor=document.getElementById('pf-floor'),pfW=document.getElementById('pf-w'),pfH=document.getElementById('pf-h');
+var pfFloor={value:'0',addEventListener:function(){}},pfW=document.getElementById('pf-w'),pfH=document.getElementById('pf-h');
 var pfX=document.getElementById('pf-x'),pfY=document.getElementById('pf-y'),pfRot=document.getElementById('pf-rot');
 var pfColor=document.getElementById('pf-color'),pfBgColor=document.getElementById('pf-bgcolor'),pfBgOpacity=document.getElementById('pf-bgopacity');
 
