@@ -1389,6 +1389,8 @@
     var pad = 20;
     minX -= pad; minY -= pad; maxX += pad; maxY += pad;
     var bw = maxX - minX, bh = maxY - minY;
+    // Set viewer aspect ratio to match actual data proportions
+    viewer.style.aspectRatio = bw + ' / ' + bh;
     objs.forEach(function(o) {
       var el = document.createElement('div');
       el.className = 'fp-obj';
