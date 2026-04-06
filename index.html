@@ -386,6 +386,7 @@
   .fp-canvas {
     position: relative;
     width: 100%;
+    max-width: 1200px;
     overflow: hidden;
     border: 1px solid var(--line);
   }
@@ -1247,11 +1248,7 @@
       <button class="fp-tab on" onclick="fpShow(0)">Begane grond</button>
     </div>
     <div class="fp-canvas" id="cv"><div id="fp"></div></div>
-    <div class="floorplan-legend">
-      <div class="legend-item"><div class="legend-swatch" style="background: rgba(224,154,47,0.13); border-color: rgba(224,154,47,0.5);"></div> Bedrijfshal</div>
-      <div class="legend-item"><div class="legend-swatch" style="background: rgba(110,150,220,0.13); border-color: rgba(110,150,220,0.5);"></div> Kantoor</div>
-      <div class="legend-item"><div class="legend-swatch" style="background: rgba(140,200,140,0.13); border-color: rgba(140,200,140,0.5);"></div> Keuken</div>
-    </div>
+    <div class="floorplan-legend" id="fp-legend"></div>
   </div>
 
   <!-- PRICING -->
@@ -1463,13 +1460,34 @@
     g.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:'+S*1000+'px '+S*1000+'px';
   }
 
+  function buildLegend(objs){
+    var legend=document.getElementById('fp-legend');
+    while(legend.firstChild) legend.removeChild(legend.firstChild);
+    var seen={};
+    objs.forEach(function(o){
+      if(!o.room||seen[o.l]) return;
+      seen[o.l]=1;
+      var item=document.createElement('div');
+      item.className='legend-item';
+      var sw=document.createElement('div');
+      sw.className='legend-swatch';
+      sw.style.background=o.bg;
+      sw.style.borderColor=o.c;
+      var txt=document.createTextNode(' '+o.l);
+      item.appendChild(sw);
+      item.appendChild(txt);
+      legend.appendChild(item);
+    });
+  }
+
   function renderFloor(f){
-    // Remove old objects
     fp.querySelectorAll('.pl,.fp-grid').forEach(function(d){d.remove();});
     document.querySelectorAll('.fp-tab').forEach(function(t,i){t.classList.toggle('on',i===f);});
     if(typeof PLACED_OBJECTS==='undefined') return;
-    PLACED_OBJECTS.filter(function(o){return o.floor===f;}).forEach(place);
+    var floorObjs=PLACED_OBJECTS.filter(function(o){return o.floor===f;});
+    floorObjs.forEach(place);
     fitToContent();
+    buildLegend(floorObjs);
   }
 
   window.fpShow=function(f){renderFloor(f);};
